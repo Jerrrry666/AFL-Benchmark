@@ -1,9 +1,11 @@
 import heapq
+from enum import Enum
+
 import torch
 
 from alg.asyncbase import AsyncBaseClient, AsyncBaseServer, Status
-from enum import Enum
 from utils.time_utils import time_record
+
 
 def add_args(parser):
     parser.add_argument('--alpha', type=float, default=3.0)

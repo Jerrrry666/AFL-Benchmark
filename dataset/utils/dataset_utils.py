@@ -1,8 +1,10 @@
 import os
 import random
+
 import numpy as np
 import yaml
 from sklearn.model_selection import train_test_split
+
 
 def check(cfg):
     config_path = cfg['dir_path'] + "/config.yaml"

@@ -1,7 +1,8 @@
 import torch
 
+from alg.base import BaseClient, BaseServer
 from utils.time_utils import time_record
-from alg.base import BaseServer, BaseClient
+
 
 def mmd(X, Y):
     X_avg = torch.sum(X, dim=0) / X.shape[0]

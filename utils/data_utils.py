@@ -1,8 +1,10 @@
 # https://github.com/TsingZ0/PFLlib/blob/master/system/utils/data_utils.py
 
-import numpy as np
 import os
+
+import numpy as np
 import torch
+
 
 def read_data(dataset, idx, is_train=True):
     if is_train:

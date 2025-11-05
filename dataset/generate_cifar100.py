@@ -1,15 +1,17 @@
-import numpy as np
 import os
 import random
+
+import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
 import yaml
 
-from utils.dataset_utils import check, separate_data, split_data, save_file
+from utils.dataset_utils import check, save_file, separate_data, split_data
 
 random.seed(1)
 np.random.seed(1)
+
 
 def generate_dataset(cfg):
     dir_path = cfg['dir_path']
@@ -19,13 +21,13 @@ def generate_dataset(cfg):
 
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.5], [0.5])])
     trainset = torchvision.datasets.CIFAR100(root=os.path.join(dir_path, "rawdata"),
-                                          train=True, download=True, transform=transform)
+                                             train=True, download=True, transform=transform)
     testset = torchvision.datasets.CIFAR100(root=os.path.join(dir_path, "rawdata"),
-                                         train=False, download=True, transform=transform)
+                                            train=False, download=True, transform=transform)
     trainset.data, trainset.targets = next(
-        iter(torch.utils.data.DataLoader(trainset, batch_size=len(trainset), shuffle=False)))
+            iter(torch.utils.data.DataLoader(trainset, batch_size=len(trainset), shuffle=False)))
     testset.data, testset.targets = next(
-        iter(torch.utils.data.DataLoader(testset, batch_size=len(testset), shuffle=False)))
+            iter(torch.utils.data.DataLoader(testset, batch_size=len(testset), shuffle=False)))
     X = np.concatenate([trainset.data.numpy(), testset.data.numpy()])
     y = np.concatenate([trainset.targets.numpy(), testset.targets.numpy()])
 

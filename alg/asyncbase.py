@@ -1,9 +1,11 @@
 import heapq
 import random
+from enum import Enum
+
 import numpy as np
 
 from alg.base import BaseClient, BaseServer
-from enum import Enum
+
 
 # Usage of Status
 # During training, those training are set to Status.ACTIVE, the active clients will update staleness, and will not be sampled

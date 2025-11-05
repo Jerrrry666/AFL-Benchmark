@@ -1,7 +1,8 @@
 import torch
 
-from utils.time_utils import time_record
 from alg.base import BaseClient, BaseServer
+from utils.time_utils import time_record
+
 
 def add_args(parser):
     parser.add_argument('--mu', type=float, default=0.05, help="Mu")

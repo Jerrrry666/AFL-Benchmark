@@ -1,15 +1,14 @@
 import importlib
+import random
+
+import numpy as np
 import torch
 import torch.nn as nn
-import random
-import numpy as np
-import yaml
-
-from utils.data_utils import read_client_data
-from model.config import load_model
 from torch.utils.data import DataLoader
 
-from utils.sys_utils import device_config, comm_config
+from model.config import load_model
+from utils.data_utils import read_client_data
+from utils.sys_utils import comm_config, device_config
 
 
 class BaseClient():

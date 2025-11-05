@@ -1,7 +1,7 @@
+import torch
+
 from alg.asyncbase import AsyncBaseClient, AsyncBaseServer, Status
 from utils.time_utils import time_record
-
-import torch
 
 
 def add_args(parser):

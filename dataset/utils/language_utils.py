@@ -1,8 +1,9 @@
 # https://github.com/TsingZ0/PFLlib/blob/master/dataset/utils/language_utils.py
 
-import re
-import numpy as np
 import json
+import re
+
+import numpy as np
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 

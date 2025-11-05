@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from alg.base import BaseClient, BaseServer
 from utils.time_utils import time_record
 
+
 def add_args(parser):
     parser.add_argument('--tau', type=float, default=0.5, help="Temperature")
     parser.add_argument('--mu', type=float, default=1, help="Mu")

@@ -1,8 +1,8 @@
-import torch
 import numpy as np
+import torch
 from sklearn.cluster import AgglomerativeClustering
 
-from alg.clusterbase import ClusterClient, ClusterServer, Cluster
+from alg.clusterbase import Cluster, ClusterClient, ClusterServer
 from utils.time_utils import time_record
 
 

@@ -1,11 +1,12 @@
 import json
 import os
-import numpy as np
 import random
+
+import numpy as np
 import yaml
 
 from dataset.utils.dataset_utils import check
-from utils.language_utils import word_to_indices, letter_to_index
+from utils.language_utils import letter_to_index, word_to_indices
 
 random.seed(1)
 np.random.seed(1)

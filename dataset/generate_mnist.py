@@ -1,12 +1,13 @@
-import numpy as np
 import os
 import random
+
+import numpy as np
 import torch
 import torchvision
 import torchvision.transforms as transforms
 import yaml
 
-from utils.dataset_utils import check, separate_data, split_data, save_file
+from utils.dataset_utils import check, save_file, separate_data, split_data
 
 random.seed(1)
 np.random.seed(1)

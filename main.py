@@ -1,27 +1,59 @@
 import importlib
-import sys
-import numpy as np
+import logging
 import os
+import sys
+
+import numpy as np
+from tqdm import tqdm
 
 from alg.asyncbase import AsyncBaseServer
 from utils.options import args_parser
-from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+def setup_logger(log_path: str, name: str = "fed") -> logging.Logger:
+    """
+    同时记录到文件与终端的简单 logger。
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    if logger.handlers:
+        logger.handlers.clear()
+
+    fmt = logging.Formatter("[%(asctime)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+
+    # 文件输出
+    if log_path:
+        fh = logging.FileHandler(log_path, encoding="utf-8")
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(fmt)
+        logger.addHandler(fh)
+
+    # 终端输出
+    sh = logging.StreamHandler(sys.stdout)
+    sh.setLevel(logging.INFO)
+    sh.setFormatter(fmt)
+    logger.addHandler(sh)
+
+    return logger
+
 
 class FedSim:
     def __init__(self, args):
         self.args = args
-        args.suffix = f'exp/{args.suffix}'
-        if not os.path.exists(f'./{args.suffix}'):
-            os.makedirs(f'./{args.suffix}')
+        args.suffix = f"exp/{args.suffix}"
+        if not os.path.exists(f"./{args.suffix}"):
+            os.makedirs(f"./{args.suffix}")
 
-        output_path = f'{args.suffix}/{args.alg}_{args.dataset}_{args.model}_' \
-                      f'{args.total_num}c_{args.epoch}E_lr{args.lr}'
-        self.output = open(f'./{output_path}.txt', 'a')
+        # === 组织日志路径 ===
+        output_path = f"{args.suffix}/{args.alg}_{args.dataset}_{args.model}_" \
+                      f"{args.total_num}c_{args.epoch}E_lr{args.lr}"
+        log_file = f"./{output_path}.log"
+        self.logger = setup_logger(log_file)
 
         # === load trainer ===
-        alg_module = importlib.import_module(f'alg.{args.alg}')
+        alg_module = importlib.import_module(f"alg.{args.alg}")
 
         # === init clients & server ===
         self.clients = [alg_module.Client(idx, args) for idx in tqdm(range(args.total_num))]
@@ -33,35 +65,34 @@ class FedSim:
 
         # check if it is an async methods
         if isinstance(self.server, AsyncBaseServer):
-            TEST_GAP *= int(args.total_num * args.sr)
-            self.server.total_round *= int(args.total_num * args.sr)
+            TEST_GAP *= int(self.args.total_num * self.args.sr)
+            self.server.total_round *= int(self.args.total_num * self.args.sr)
         try:
-            for rnd in tqdm(range(0, self.server.total_round), desc='Communication Round', leave=False):
+            for rnd in tqdm(range(0, self.server.total_round), desc="Communication Round", leave=False):
                 # ===================== train =====================
                 self.server.round = rnd
                 self.server.run()
 
                 # ===================== test =====================
-                if (self.server.total_round - rnd <= 10) or (rnd % TEST_GAP == (TEST_GAP-1)):
+                if (self.server.total_round - rnd <= 10) or (rnd % TEST_GAP == (TEST_GAP - 1)):
                     ret_dict = self.server.test_all()
-                    acc = ret_dict['acc']
+                    acc = ret_dict["acc"]
                     acc_list.append(acc)
 
-                    self.output.write(f'[Round {rnd}] Acc: {acc:.2f} | Time: {self.server.wall_clock_time:.2f}s\n')
-                    self.output.flush()
+                    self.logger.info(f"[Round {rnd}] Acc: {acc:.2f} | Time: {self.server.wall_clock_time:.2f}s")
 
         except KeyboardInterrupt:
             ...
         finally:
             avg_count = 10
-            acc_avg = np.mean(acc_list[-avg_count:]).item()
-            acc_max = np.max(acc_list).item()
+            acc_avg = np.mean(acc_list[-avg_count:]).item() if acc_list else 0.0
+            acc_max = np.max(acc_list).item() if acc_list else 0.0
 
-            self.output.write('==========Summary==========\n')
-            self.output.write(f'[Total] Acc: {acc_avg:.2f} | Max Acc: {acc_max:.2f}\n')
+            self.logger.info("==========Summary==========")
+            self.logger.info(f"[Total] Acc: {acc_avg:.2f} | Max Acc: {acc_max:.2f}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = args_parser()
     fed = FedSim(args=args)
     fed.simulate()

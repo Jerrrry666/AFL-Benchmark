@@ -1,8 +1,9 @@
-import yaml
-import numpy as np
 import random
 
-from dataset.utils.dataset_utils import split_data, save_file
+import numpy as np
+import yaml
+
+from dataset.utils.dataset_utils import save_file, split_data
 
 random.seed(0)
 

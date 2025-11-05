@@ -1,7 +1,8 @@
+import torch
+
 from alg.base import BaseClient, BaseServer
 from utils.time_utils import time_record
 
-import torch
 
 def add_args(parser):
     parser.add_argument('--eta_g', type=float, default=0.001)
