@@ -20,7 +20,7 @@ EMOTION_LABELS = ['NEU', 'HAP', 'SAD', 'FEA', 'DIS', 'ANG']
 
 
 def generate_dataset(cfg):
-    dir_path = Path(cfg['dir_path'] + '_' + f'{cfg["num_clients"]}')
+    dir_path = Path(cfg['dir_path'] + '_' + f'{cfg["client_num"]}')
     dir_path.mkdir(parents=True, exist_ok=True)
     if check(cfg): return
 

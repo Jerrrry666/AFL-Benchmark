@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 
 
 def check(cfg):
-    dir_path = Path(cfg['dir_path'] + '_' + f'{cfg["num_clients"]}')
+    dir_path = Path(cfg['dir_path'] + '_' + f'{cfg["client_num"]}')
     config_path = dir_path / "config.yaml"
     train_path = dir_path / "train"
     test_path = dir_path / "test"

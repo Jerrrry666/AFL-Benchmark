@@ -2,7 +2,6 @@ import random
 from pathlib import Path
 
 import numpy as np
-import torch
 import torchvision
 import torchvision.transforms as transforms
 import yaml
@@ -14,22 +13,24 @@ np.random.seed(1)
 
 
 def generate_dataset(cfg):
-    dir_path = Path(cfg['dir_path'] + '_' + f'{cfg["num_clients"]}')
+    dir_path = Path(cfg['dir_path'] + '_' + f'{cfg["client_num"]}')
     dir_path.mkdir(parents=True, exist_ok=True)
 
     if check(cfg): return
 
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.5], [0.5])])
-    trainset = torchvision.datasets.CIFAR100(root=dir_path / "rawdata",
+    trainset = torchvision.datasets.CIFAR100(root="~/Dataset/CIFAR100",
                                              train=True, download=True, transform=transform)
-    testset = torchvision.datasets.CIFAR100(root=dir_path / "rawdata",
+    testset = torchvision.datasets.CIFAR100(root="~/Dataset/CIFAR100",
                                             train=False, download=True, transform=transform)
-    trainset.data, trainset.targets = next(
-            iter(torch.utils.data.DataLoader(trainset, batch_size=len(trainset), shuffle=False)))
-    testset.data, testset.targets = next(
-            iter(torch.utils.data.DataLoader(testset, batch_size=len(testset), shuffle=False)))
-    X = np.concatenate([trainset.data.numpy(), testset.data.numpy()])
-    y = np.concatenate([trainset.targets.numpy(), testset.targets.numpy()])
+
+    trainset.data = np.array(trainset.data)
+    trainset.targets = np.array(trainset.targets)
+    testset.data = np.array(testset.data)
+    testset.targets = np.array(testset.targets)
+
+    X = np.concatenate([trainset.data, testset.data])
+    y = np.concatenate([trainset.targets, testset.targets])
 
     cfg['class_num'] = len(set(y))
     X, y, statistic = separate_data((X, y), cfg)
