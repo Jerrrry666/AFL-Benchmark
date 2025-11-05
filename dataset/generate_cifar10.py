@@ -1,5 +1,6 @@
 import os
 import random
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -14,7 +15,7 @@ np.random.seed(1)
 
 
 def generate_dataset(cfg):
-    dir_path = cfg['dir_path'] + '_' + f'{cfg["num_clients"]}'
+    dir_path = Path(cfg['dir_path'] + '_' + f'{cfg["num_clients"]}')
     os.makedirs(dir_path, exist_ok=True)
 
     if check(cfg): return

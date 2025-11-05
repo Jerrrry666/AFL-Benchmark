@@ -1,5 +1,5 @@
-import os
 import random
+from pathlib import Path
 
 import numpy as np
 import yaml
@@ -7,23 +7,20 @@ from sklearn.model_selection import train_test_split
 
 
 def check(cfg):
-    config_path = cfg['dir_path'] + "/config.yaml"
-    train_path = cfg['dir_path'] + "/train/"
-    test_path = cfg['dir_path'] + "/test/"
+    dir_path = Path(cfg['dir_path'] + '_' + f'{cfg["num_clients"]}')
+    config_path = dir_path / "config.yaml"
+    train_path = dir_path / "train"
+    test_path = dir_path / "test"
 
-    if os.path.exists(config_path):
-        with open(config_path, 'r') as f:
+    if config_path.is_file():
+        with config_path.open('r') as f:
             config = yaml.load(f.read(), Loader=yaml.Loader)
         if config == cfg:
             print("\nDataset already generated.\n")
             return True
 
-    dir_path = os.path.dirname(train_path)
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
-    dir_path = os.path.dirname(test_path)
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
+    train_path.mkdir(parents=True, exist_ok=True)
+    test_path.mkdir(parents=True, exist_ok=True)
     return False
 
 
@@ -67,7 +64,7 @@ def separate_data(data, cfg):
             idx = 0
             for client, size in zip(selected_clients, sizes):
                 dataidx_map.setdefault(client, np.array([], dtype=int))
-                dataidx_map[client] = np.concatenate([dataidx_map[client], class_idxs[idx:idx+size]])
+                dataidx_map[client] = np.concatenate([dataidx_map[client], class_idxs[idx:idx + size]])
                 class_num_per_client[client] -= 1
                 idx += size
 
@@ -196,20 +193,20 @@ def split_data(X, y, cfg):
 
 
 def save_file(train_data, test_data, config):
-    dir_path = config['dir_path']
-    config_path = f"{dir_path}/config.yaml"
-    train_path = f"{dir_path}/train/"
-    test_path = f"{dir_path}/test/"
+    dir_path = Path(config['dir_path'] + '_' + f'{config["num_clients"]}')
+    config_path = dir_path / "config.yaml"
+    train_path = dir_path / "train"
+    test_path = dir_path / "test"
 
     print("Saving to disk.\n")
 
     for idx, train_dict in enumerate(train_data):
-        with open(train_path + str(idx) + '.npz', 'wb') as f:
+        with (train_path / f'{idx}.npz').open('wb') as f:
             np.savez_compressed(f, data=train_dict)
     for idx, test_dict in enumerate(test_data):
-        with open(test_path + str(idx) + '.npz', 'wb') as f:
+        with (test_path / f'{idx}.npz').open('wb') as f:
             np.savez_compressed(f, data=test_dict)
-    with open(config_path, 'w') as f:
+    with config_path.open('w') as f:
         yaml.dump(config, f)
 
     print("Finish generating dataset.\n")
