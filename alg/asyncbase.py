@@ -32,8 +32,8 @@ class AsyncBaseClient(BaseClient):
 
 
 class AsyncBaseServer(BaseServer):
-    def __init__(self, id, args, clients):
-        super().__init__(id, args, clients)
+    def __init__(self, args, clients):
+        super().__init__(args, clients)
         self.decay = args.decay
 
         self.MAX_CONCURRENCY = int(self.client_num * self.sample_rate)

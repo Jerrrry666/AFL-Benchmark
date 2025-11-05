@@ -1,7 +1,7 @@
 import importlib
 import logging
-import os
 import sys
+from pathlib import Path
 
 import numpy as np
 from tqdm import tqdm
@@ -9,11 +9,11 @@ from tqdm import tqdm
 from alg.asyncbase import AsyncBaseServer
 from utils.options import args_parser
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 def setup_logger(log_path: str, name: str = "fed") -> logging.Logger:
     """
-    同时记录到文件与终端的简单 logger。
+    log to file and terminal at same time。
     """
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
@@ -21,16 +21,16 @@ def setup_logger(log_path: str, name: str = "fed") -> logging.Logger:
     if logger.handlers:
         logger.handlers.clear()
 
-    fmt = logging.Formatter("[%(asctime)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    fmt = logging.Formatter("%(message)s")
 
-    # 文件输出
+    # output to file
     if log_path:
         fh = logging.FileHandler(log_path, encoding="utf-8")
         fh.setLevel(logging.INFO)
         fh.setFormatter(fmt)
         logger.addHandler(fh)
 
-    # 终端输出
+    # output to terminal
     sh = logging.StreamHandler(sys.stdout)
     sh.setLevel(logging.INFO)
     sh.setFormatter(fmt)
@@ -42,22 +42,20 @@ def setup_logger(log_path: str, name: str = "fed") -> logging.Logger:
 class FedSim:
     def __init__(self, args):
         self.args = args
-        args.suffix = f"exp/{args.suffix}"
-        if not os.path.exists(f"./{args.suffix}"):
-            os.makedirs(f"./{args.suffix}")
+        args.suffix = Path("logs") / args.suffix
+        args.suffix.mkdir(parents=True, exist_ok=True)
 
         # === 组织日志路径 ===
-        output_path = f"{args.suffix}/{args.alg}_{args.dataset}_{args.model}_" \
-                      f"{args.total_num}c_{args.epoch}E_lr{args.lr}"
-        log_file = f"./{output_path}.log"
-        self.logger = setup_logger(log_file)
+        output_path = args.suffix / f"{args.alg}_{args.dataset}_{args.model}_{args.total_num}c_{args.epoch}E_lr{args.lr}"
+        log_file = output_path.with_suffix(".log")
+        self.logger = setup_logger(str(log_file))
 
         # === load trainer ===
         alg_module = importlib.import_module(f"alg.{args.alg}")
 
         # === init clients & server ===
         self.clients = [alg_module.Client(idx, args) for idx in tqdm(range(args.total_num))]
-        self.server = alg_module.Server(0, args, self.clients)
+        self.server = alg_module.Server(args, self.clients)
 
     def simulate(self):
         acc_list = []

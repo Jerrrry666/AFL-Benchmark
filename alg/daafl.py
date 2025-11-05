@@ -17,8 +17,8 @@ class Client(AsyncBaseClient):
 
 
 class Server(AsyncBaseServer):
-    def __init__(self, id, args, clients):
-        super().__init__(id, args, clients)
+    def __init__(self, args, clients):
+        super().__init__(args, clients)
         self.v = 0
         self.alpha_sum = [0 for _ in self.clients]
         self.data_ratios = [c.data_volume / sum(c.data_volume for c in clients) for c in clients]

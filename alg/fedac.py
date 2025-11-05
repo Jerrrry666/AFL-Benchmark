@@ -36,8 +36,8 @@ class Client(AsyncBaseClient):
         return model_tensor.numel() * model_tensor.element_size() + self.C.numel() + self.C.element_size()
 
 class Server(AsyncBaseServer):
-    def __init__(self, id, args, clients):
-        super().__init__(id, args, clients)
+    def __init__(self, args, clients):
+        super().__init__(args, clients)
         self.C = torch.zeros_like(self.model2tensor())
         self.m = torch.zeros_like(self.model2tensor())
         self.v = torch.zeros_like(self.model2tensor())

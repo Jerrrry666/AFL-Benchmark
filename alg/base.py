@@ -11,7 +11,7 @@ from utils.data_utils import read_client_data
 from utils.sys_utils import comm_config, device_config
 
 
-class BaseClient():
+class BaseClient:
     def __init__(self, id, args):
         self.id = id
         self.args = args
@@ -31,22 +31,21 @@ class BaseClient():
                                      weight_decay=1e-4)
         self.metric = {'loss': [], 'acc': []}
 
-
         if self.dataset_train is not None:
             self.loader_train = DataLoader(
-                dataset=self.dataset_train,
-                batch_size=self.batch_size,
-                shuffle=True,
-                collate_fn=None,
-                # drop_last=True
+                    dataset=self.dataset_train,
+                    batch_size=self.batch_size,
+                    shuffle=True,
+                    collate_fn=None,
+                    # drop_last=True
             )
         if self.dataset_test is not None:
             self.loader_test = DataLoader(
-                dataset=self.dataset_test,
-                batch_size=self.batch_size,
-                shuffle=False,
-                collate_fn=None,
-                # drop_last=True
+                    dataset=self.dataset_test,
+                    batch_size=self.batch_size,
+                    shuffle=False,
+                    collate_fn=None,
+                    # drop_last=True
             )
 
         self.training_time = None
@@ -98,12 +97,11 @@ class BaseClient():
                 correct += (preds_y == y).sum().item()
         self.metric['acc'] = 100.00 * correct / total
 
-
     def reset_optimizer(self, decay=True):
         if not decay:
             return
         for param_group in self.optim.param_groups:
-            param_group['lr'] =  self.lr * (self.args.gamma ** self.server.round)
+            param_group['lr'] = self.lr * (self.args.gamma ** self.server.round)
 
     def model2tensor(self, params=None):
         alg_module = importlib.import_module(f'alg.{self.args.alg}')
@@ -135,9 +133,16 @@ class BaseClient():
         model_tensor = self.model2tensor()
         return model_tensor.numel() * model_tensor.element_size()
 
+
 class BaseServer(BaseClient):
-    def __init__(self, id, args, clients):
-        super().__init__(id, args)
+    def __init__(self, args, clients):
+        self.dataset_train = None
+        self.dataset_test = None
+        self.model = None
+        self.loss_func = None
+        self.optim = None
+        super().__init__(0, args)
+
         self.client_num = args.total_num
         self.sample_rate = args.sr
         self.total_round = args.rnd
@@ -177,8 +182,10 @@ class BaseServer(BaseClient):
 
     def uplink(self):
         assert (len(self.sampled_clients) > 0)
+
         def nan_to_zero(tensor):
             return torch.where(torch.isnan(tensor), torch.zeros_like(tensor), tensor)
+
         self.received_params = [nan_to_zero(client.model2tensor()) for client in self.sampled_clients]
 
     def aggregate(self):
@@ -198,6 +205,6 @@ class BaseServer(BaseClient):
             self.metric['acc'].append(client.metric['acc'])
 
         return {
-            'acc': np.mean(self.metric['acc']),
+            'acc'    : np.mean(self.metric['acc']),
             'acc_std': np.std(self.metric['acc']),
         }

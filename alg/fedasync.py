@@ -16,8 +16,8 @@ class Client(AsyncBaseClient):
 
 
 class Server(AsyncBaseServer):
-    def __init__(self, id, args, clients):
-        super().__init__(id, args, clients)
+    def __init__(self, args, clients):
+        super().__init__(args, clients)
         self.decay = args.decay
 
     def run(self):
