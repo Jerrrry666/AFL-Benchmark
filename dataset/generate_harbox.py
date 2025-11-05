@@ -1,5 +1,5 @@
-import os
 import random
+from pathlib import Path
 
 import numpy as np
 import yaml
@@ -22,11 +22,11 @@ def load_data(client_id):
 
     for class_id in range(NUM_OF_CLASS):
         # NOTE: the client-0 is empty!
-        read_path = SOURCE_PATH + '/' + str(client_id+1) + '/' + str(class_set[class_id]) + '_train' + '.txt'
+        read_path = Path(SOURCE_PATH) / str(client_id+1) / f"{class_set[class_id]}_train.txt"
         print(read_path)
 
-        if os.path.exists(read_path):
-            temp_original_data = np.loadtxt(read_path)
+        if read_path.exists():
+            temp_original_data = np.loadtxt(str(read_path))
             temp_reshape = temp_original_data.reshape(-1, 100, 10)
             temp_coll = temp_reshape[:, :, 1:10].reshape(-1, DIMENSION_OF_FEATURE)
             count_img = temp_coll.shape[0]
@@ -50,6 +50,6 @@ def generate_dataset(cfg):
     save_file(train_data, test_data, cfg)
 
 if __name__ == "__main__":
-    with open('config.yaml', 'r') as f:
+    with Path('config.yaml').open('r') as f:
         config = yaml.load(f.read(), Loader=yaml.Loader)
     generate_dataset(config)

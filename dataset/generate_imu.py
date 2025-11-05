@@ -1,4 +1,5 @@
 import random
+from pathlib import Path
 
 import numpy as np
 import yaml
@@ -32,10 +33,9 @@ def load_data(user_id):
     coll_label = []
 
     for class_id in range(NUM_OF_CLASS):
-        read_path = './' + \
-                    cluster_des + str(intra_user_id) + str(class_set[class_id]) + '_nor' + '.txt'
+        read_path = Path('.') / f'{cluster_des}{intra_user_id}{class_set[class_id]}_nor.txt'
 
-        temp_original_data = np.loadtxt(read_path, delimiter=',')
+        temp_original_data = np.loadtxt(str(read_path), delimiter=',')
         temp_coll = temp_original_data.reshape(-1, DIMENSION_OF_FEATURE)
         count_img = temp_coll.shape[0]
         temp_label = class_id * np.ones(count_img)
@@ -48,6 +48,7 @@ def load_data(user_id):
 
     return coll_class, coll_label
 
+
 def generate_dataset(cfg):
     X = []
     y = []
@@ -58,11 +59,8 @@ def generate_dataset(cfg):
     train_data, test_data = split_data(X, y, cfg)
     save_file(train_data, test_data, cfg)
 
+
 if __name__ == "__main__":
-    with open('config.yaml', 'r') as f:
+    with Path('config.yaml').open('r') as f:
         config = yaml.load(f.read(), Loader=yaml.Loader)
     generate_dataset(config)
-
-
-
-

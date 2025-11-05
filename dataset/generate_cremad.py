@@ -1,6 +1,3 @@
-"client num < 30 is appropriate, otherwise the data is too small"
-
-import os
 import random
 from pathlib import Path
 
@@ -23,12 +20,12 @@ EMOTION_LABELS = ['NEU', 'HAP', 'SAD', 'FEA', 'DIS', 'ANG']
 
 
 def generate_dataset(cfg):
-    dir_path = cfg['dir_path']
-    os.makedirs(dir_path, exist_ok=True)
+    dir_path = Path(cfg['dir_path'] + '_' + f'{cfg["num_clients"]}')
+    dir_path.mkdir(parents=True, exist_ok=True)
     if check(cfg): return
 
-    raw = f"{dir_path}/"
-    if not os.path.exists(raw):
+    raw = dir_path
+    if not dir_path.exists():
         raise RuntimeError("Please decompose the raw data of CREMA-D to /CREMA-D/")
 
     X, y = [], []
@@ -45,8 +42,6 @@ def generate_dataset(cfg):
     dataloader = torch.utils.data.DataLoader(cremad_dataset, batch_size=1, shuffle=False)
 
     for image, audio, label in tqdm(dataloader, total=len(dataloader)):
-        # X[0].append(image.squeeze(0).numpy())
-        # X[1].append(audio.squeeze(0).numpy())
         X.append([image.squeeze(0).numpy(), audio.squeeze(0).numpy()])
         y.extend(label)
 
@@ -60,36 +55,32 @@ def generate_dataset(cfg):
 
 class CREMAD_Dataset(Dataset):
     def __init__(self, root, dataidxs=None, train=True, transform=None, target_transform=None):
-        self.root = root
+        self.root = Path(root)
         self.dataidxs = dataidxs
         self.train = train
         self.transform = transform
         self.target_transform = target_transform
         self.sr = 16000
 
-        self.video_dir = Path(root) / 'VideoFlash'
-        self.audio_dir = Path(root) / 'AudioWAV'
-        self.full_data = os.listdir(self.video_dir)
-        self.labels = ['']
-        sorted(self.full_data)
+        self.video_dir = self.root / 'VideoFlash'
+        self.audio_dir = self.root / 'AudioWAV'
+        self.full_data = sorted([f.name for f in self.video_dir.iterdir() if f.is_file()])
 
     def __len__(self):
         return len(self.full_data)
 
     def __getitem__(self, index):
         vid_path = self.video_dir / self.full_data[index]
-        file = Path(vid_path).name
-        filename = Path(vid_path).stem
-        audio_path = self.audio_dir / (filename + '.wav')
+        filename = vid_path.stem
+        audio_path = self.audio_dir / f'{filename}.wav'
 
         # === get label from filename ===
         label = EMOTION_LABELS.index(filename.split('_')[2])
-        # label = torch.tensor(label)
         if self.target_transform:
             label = self.target_transform(label)
 
         # === read video frames ===
-        cap = cv.VideoCapture(vid_path)
+        cap = cv.VideoCapture(str(vid_path))
         total = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
         idxs = np.linspace(0, total - 1, 5, dtype=int)[1:-1]
         frames = []
@@ -108,12 +99,11 @@ class CREMAD_Dataset(Dataset):
             frame_out = self.transform(frame_out)
 
         # === extract audio feature ===
-        samples, rate = librosa.load(audio_path, sr=self.sr)
+        samples, rate = librosa.load(str(audio_path), sr=self.sr)
         resamples = np.tile(samples, 3)[:self.sr * 3]
         resamples[resamples > 1.] = 1.
         resamples[resamples < -1.] = -1.
 
-        # spectrogram = librosa.stft(resamples, n_fft=512, hop_length=353)
         frequencies, times, spectrogram = signal.spectrogram(resamples, rate, nperseg=512, noverlap=353)
         spectrogram = np.log(np.abs(spectrogram) + 1e-7)
         mean = np.mean(spectrogram)
@@ -126,6 +116,6 @@ class CREMAD_Dataset(Dataset):
 
 
 if __name__ == "__main__":
-    with open('config.yaml', 'r') as f:
+    with Path('config.yaml').open('r') as f:
         config = yaml.load(f.read(), Loader=yaml.Loader)
     generate_dataset(config)
