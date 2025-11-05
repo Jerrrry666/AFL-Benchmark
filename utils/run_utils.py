@@ -41,10 +41,13 @@ class OnDevice:
         # Outside this block, the model is automatically moved back to the 'cpu'
     """
 
-    def __init__(self, model: list[torch.nn.Module] | torch.nn.Module, device: str | int):
+    def __init__(self,
+                 model: list[torch.nn.Module] | torch.nn.Module,
+                 device: str | int,
+                 model_in_cpu_flag: bool = False):
         self.model = model
         self.target_device = device
-        self.original_device = 'cpu'  # Always move back to CPU after exiting, as required
+        self.original_device = 'cpu' if model_in_cpu_flag else device
 
     def __enter__(self):
         """When entering the with block, move the model to the target device."""

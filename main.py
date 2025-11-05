@@ -9,7 +9,8 @@ from tqdm import tqdm
 from alg.asyncbase import AsyncBaseServer
 from utils.options import args_parser
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+# sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 
 def setup_logger(log_path: str, name: str = "fed") -> logging.Logger:
@@ -85,7 +86,7 @@ class FedSim:
                     time = self.server.wall_clock_time
                     time_list.append(time)
 
-                    self.logger.info(f"[Round {rnd}] Acc: {acc:.2f} | Time: {time:.2f}s")
+                    self.logger.info(f"[Round {rnd}]\tAcc: {acc:.2f}\t| Time: {time:.2f}s")
 
         except KeyboardInterrupt:
             ...
@@ -95,7 +96,7 @@ class FedSim:
             acc_max = np.max(acc_list).item() if acc_list else 0.0
 
             self.logger.info("==========Summary==========")
-            self.logger.info(f"[Total] Acc: {acc_avg:.2f} | Max Acc: {acc_max:.2f}")
+            self.logger.info(f"[Total] Acc: {acc_avg:.2f}\t| Max Acc: {acc_max:.2f}")
 
             acc_list = np.array(acc_list)
             time_list = np.array(time_list)

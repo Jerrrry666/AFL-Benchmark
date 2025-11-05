@@ -1,8 +1,10 @@
-import numpy as np
 import random
-import yaml
 from pathlib import Path
+
+import numpy as np
+import yaml
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
 
 def check(cfg):
@@ -197,14 +199,12 @@ def save_file(train_data, test_data, config):
     train_path = dir_path / "train"
     test_path = dir_path / "test"
 
-    print("Saving to disk.\n")
-
-    for idx, train_dict in enumerate(train_data):
-        with (train_path / f'{idx}.npz').open('wb') as f:
-            np.savez_compressed(f, data=train_dict)
-    for idx, test_dict in enumerate(test_data):
-        with (test_path / f'{idx}.npz').open('wb') as f:
-            np.savez_compressed(f, data=test_dict)
+    n = len(train_data)
+    for idx in tqdm(range(n), total=n, desc="Saving client to disk"):
+        with (train_path / f"{idx}.npz").open("wb") as f:
+            np.savez_compressed(f, data=train_data[idx])
+        with (test_path / f"{idx}.npz").open("wb") as f:
+            np.savez_compressed(f, data=test_data[idx])
     with config_path.open('w') as f:
         yaml.dump(config, f)
 

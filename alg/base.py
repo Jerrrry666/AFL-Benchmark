@@ -16,15 +16,18 @@ class BaseClient:
     def __init__(self, id, args):
         self.id = id
         self.args = args
-        self.dataset_train = read_client_data(args.dataset, self.id, is_train=True)
-        self.dataset_test = read_client_data(args.dataset, self.id, is_train=False)
+        self.dataset_name = args.dataset
+        self.dataset_path = f'{args.dataset}-{args.total_num}'
+        self.dataset_train = read_client_data(self.dataset_path, self.id, is_train=True)
+        self.dataset_test = read_client_data(self.dataset_path, self.id, is_train=False)
         self.device = args.device
+        self.model_in_cpu = args.model_in_cpu
         self.server = None
 
         self.lr = args.lr
         self.batch_size = args.bs
         self.epoch = args.epoch
-        self.model = load_model(args).to(args.device)
+        self.model = load_model(args) if self.model_in_cpu else load_model(args).to(args.device)
         self.loss_func = nn.CrossEntropyLoss()
         self.optim = torch.optim.SGD(self.model.parameters(),
                                      lr=self.lr,
@@ -179,7 +182,7 @@ class BaseServer(BaseClient):
         for client in self.sampled_clients:
             client.model.train()
             client.reset_optimizer()
-            with OnDevice(client.model, client.device):
+            with OnDevice(client.model, client.device, self.model_in_cpu):
                 client.run()
         self.wall_clock_time += max([client.training_time for client in self.sampled_clients])
 

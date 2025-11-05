@@ -1,6 +1,6 @@
 # https://github.com/TsingZ0/PFLlib/blob/master/system/utils/data_utils.py
 
-import os
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -8,18 +8,18 @@ import torch
 
 def read_data(dataset, idx, is_train=True):
     if is_train:
-        train_data_dir = os.path.join('./dataset', dataset, 'train/')
+        train_data_dir = Path('dataset') / dataset / 'train'
 
-        train_file = train_data_dir + str(idx) + '.npz'
+        train_file = train_data_dir / f"{idx}.npz"
         with open(train_file, 'rb') as f:
             train_data = np.load(f, allow_pickle=True)['data'].tolist()
 
         return train_data
 
     else:
-        test_data_dir = os.path.join('./dataset', dataset, 'test/')
+        test_data_dir = Path('dataset') / dataset / 'test'
 
-        test_file = test_data_dir + str(idx) + '.npz'
+        test_file = test_data_dir / f"{idx}.npz"
         with open(test_file, 'rb') as f:
             test_data = np.load(f, allow_pickle=True)['data'].tolist()
 
