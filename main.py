@@ -43,13 +43,17 @@ def setup_logger(log_path: str, name: str = "fed") -> logging.Logger:
 class FedSim:
     def __init__(self, args):
         self.args = args
-        args.suffix = Path("logs") / args.suffix
-        args.suffix.mkdir(parents=True, exist_ok=True)
+        self.suffix = Path("logs") / args.suffix
+        self.suffix.mkdir(parents=True, exist_ok=True)
 
-        # === 组织日志路径 ===
-        output_path = args.suffix / f"{args.alg}_{args.dataset}_{args.model}_{args.total_num}c_{args.epoch}E_lr{args.lr}"
-        log_file = output_path.with_suffix(".log")
-        self.logger = setup_logger(str(log_file))
+        # backup config.yaml
+        import shutil
+        shutil.copy("config.yaml",
+                    self.suffix / f"{args.alg}_{args.dataset}_{args.model}_{args.total_num}c_{args.epoch}E_lr{args.lr}.yaml")
+
+        # === logger path ===
+        logger_path = self.suffix / f"{args.alg}_{args.dataset}_{args.model}_{args.total_num}c_{args.epoch}E_lr{args.lr}.log"
+        self.logger = setup_logger(str(logger_path))
 
         # === load trainer ===
         alg_module = importlib.import_module(f"alg.{args.alg}")
@@ -96,7 +100,7 @@ class FedSim:
             acc_list = np.array(acc_list)
             time_list = np.array(time_list)
             data = np.column_stack((acc_list, time_list))
-            csv_path = self.args.suffix / "acc&time_history.csv"
+            csv_path = self.suffix / "acc&time_history.csv"
             np.savetxt(csv_path, data, delimiter=",", header="accuracy,time", comments="", fmt="%.6f")
             self.logger.info(f"Results saved to {csv_path}")
 
