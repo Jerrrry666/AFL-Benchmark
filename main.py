@@ -11,6 +11,7 @@ from utils.options import args_parser
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+
 def setup_logger(log_path: str, name: str = "fed") -> logging.Logger:
     """
     log to file and terminal at same time。
@@ -59,6 +60,7 @@ class FedSim:
 
     def simulate(self):
         acc_list = []
+        time_list = []
         TEST_GAP = self.args.test_gap
 
         # check if it is an async methods
@@ -76,8 +78,10 @@ class FedSim:
                     ret_dict = self.server.test_all()
                     acc = ret_dict["acc"]
                     acc_list.append(acc)
+                    time = self.server.wall_clock_time
+                    time_list.append(time)
 
-                    self.logger.info(f"[Round {rnd}] Acc: {acc:.2f} | Time: {self.server.wall_clock_time:.2f}s")
+                    self.logger.info(f"[Round {rnd}] Acc: {acc:.2f} | Time: {time:.2f}s")
 
         except KeyboardInterrupt:
             ...
@@ -88,6 +92,13 @@ class FedSim:
 
             self.logger.info("==========Summary==========")
             self.logger.info(f"[Total] Acc: {acc_avg:.2f} | Max Acc: {acc_max:.2f}")
+
+            acc_list = np.array(acc_list)
+            time_list = np.array(time_list)
+            data = np.column_stack((acc_list, time_list))
+            csv_path = self.args.suffix / "acc&time_history.csv"
+            np.savetxt(csv_path, data, delimiter=",", header="accuracy,time", comments="", fmt="%.6f")
+            self.logger.info(f"Results saved to {csv_path}")
 
 
 if __name__ == "__main__":
