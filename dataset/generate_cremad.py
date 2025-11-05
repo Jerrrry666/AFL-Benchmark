@@ -1,11 +1,10 @@
-import random
-from pathlib import Path
-
 import cv2 as cv
 import librosa
 import numpy as np
+import random
 import torch
 import yaml
+from pathlib import Path
 from scipy import signal
 from torch.utils.data import Dataset
 from torchvision.transforms import v2
@@ -20,7 +19,7 @@ EMOTION_LABELS = ['NEU', 'HAP', 'SAD', 'FEA', 'DIS', 'ANG']
 
 
 def generate_dataset(cfg):
-    dir_path = Path(cfg['dir_path'] + '_' + f'{cfg["client_num"]}')
+    dir_path = Path(cfg['dir_path'] + '-' + f'{cfg["client_num"]}')
     dir_path.mkdir(parents=True, exist_ok=True)
     if check(cfg): return
 
@@ -118,4 +117,5 @@ class CREMAD_Dataset(Dataset):
 if __name__ == "__main__":
     with Path('config.yaml').open('r') as f:
         config = yaml.load(f.read(), Loader=yaml.Loader)
+    assert config['dir_path'].lower() == 'crema-d', 'Dataset name does not match saving dir_path (dataset/config.yaml) !'
     generate_dataset(config)

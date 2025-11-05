@@ -7,7 +7,7 @@ model: mlp
 model_in_cpu: false
 
 # federated config
-total_num: 100
+total_num: 20
 sr: 0.1
 rnd: 10
 test_gap: 1

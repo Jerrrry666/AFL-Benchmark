@@ -1,13 +1,12 @@
-import random
-from pathlib import Path
-
 import numpy as np
+import random
 import yaml
+from pathlib import Path
 from sklearn.model_selection import train_test_split
 
 
 def check(cfg):
-    dir_path = Path(cfg['dir_path'] + '_' + f'{cfg["client_num"]}')
+    dir_path = Path(cfg['dir_path'] + '-' + f'{cfg["client_num"]}')
     config_path = dir_path / "config.yaml"
     train_path = dir_path / "train"
     test_path = dir_path / "test"
@@ -193,7 +192,7 @@ def split_data(X, y, cfg):
 
 
 def save_file(train_data, test_data, config):
-    dir_path = Path(config['dir_path'] + '_' + f'{config["num_clients"]}')
+    dir_path = Path(config['dir_path'] + '-' + f'{config["client_num"]}')
     config_path = dir_path / "config.yaml"
     train_path = dir_path / "train"
     test_path = dir_path / "test"

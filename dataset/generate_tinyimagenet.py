@@ -1,10 +1,9 @@
-import random
-from pathlib import Path
-
 import numpy as np
+import random
 import torch
 import torchvision.transforms as transforms
 import yaml
+from pathlib import Path
 from torchvision.datasets import DatasetFolder, ImageFolder
 
 from utils.dataset_utils import check, save_file, separate_data, split_data
@@ -47,18 +46,18 @@ class ImageFolder_custom(DatasetFolder):
             return len(self.dataidxs)
 
 def generate_dataset(cfg):
-    dir_path = Path(cfg['dir_path'] + '_' + f'{cfg["client_num"]}')
+    dir_path = Path(cfg['dir_path'] + '-' + f'{cfg["client_num"]}')
     dir_path.mkdir(parents=True, exist_ok=True)
 
     if check(cfg): return
 
-    rawdata_path = dir_path / 'rawdata'
+    rawdata_path = "~/Dataset/",
     if not rawdata_path.exists():
         import os
         os.system(f'wget --directory-prefix {rawdata_path} http://cs231n.stanford.edu/tiny-imagenet-200.zip')
         os.system(f'unzip {rawdata_path}/tiny-imagenet-200.zip -d {rawdata_path}')
     else:
-        print('rawdata already exists.\n')
+        print(f'rawdata already exists. {rawdata_path}\n')
 
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.5], [0.5])])
     trainset = ImageFolder_custom(root=str(dir_path / 'rawdata/tiny-imagenet-200/train/'), transform=transform)

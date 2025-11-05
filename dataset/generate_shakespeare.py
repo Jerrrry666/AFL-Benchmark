@@ -1,9 +1,8 @@
 import json
-import random
-from pathlib import Path
-
 import numpy as np
+import random
 import yaml
+from pathlib import Path
 
 from dataset.utils.dataset_utils import check
 from utils.language_utils import letter_to_index, word_to_indices
@@ -27,7 +26,7 @@ def process_y(raw_y_batch):
     return y_batch
 
 def generate_dataset(cfg):
-    dir_path = Path(cfg['dir_path'] + '_' + f'{cfg["client_num"]}')
+    dir_path = Path(cfg['dir_path'] + '-' + f'{cfg["client_num"]}')
     dir_path.mkdir(parents=True, exist_ok=True)
 
     if check(cfg): return

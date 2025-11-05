@@ -1,9 +1,8 @@
-import random
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
+import random
 import yaml
+from pathlib import Path
 
 from utils.dataset_utils import check, save_file, separate_data, split_data
 from utils.language_utils import tokenizer
@@ -14,7 +13,7 @@ max_len = 200
 max_tokens = 32000
 
 def generate_dataset(cfg):
-    dir_path = Path(cfg['dir_path'] + '_' + f'{cfg["client_num"]}')
+    dir_path = Path(cfg['dir_path'] + '-' + f'{cfg["client_num"]}')
     dir_path.mkdir(parents=True, exist_ok=True)
 
     if check(cfg): return
@@ -52,4 +51,5 @@ def generate_dataset(cfg):
 if __name__ == "__main__":
     with Path('config.yaml').open('r') as f:
         config = yaml.load(f.read(), Loader=yaml.Loader)
+    assert config['dir_path'].lower() == 'agnews', 'Dataset name does not match saving dir_path (dataset/config.yaml) !'
     generate_dataset(config)
