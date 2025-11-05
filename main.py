@@ -13,34 +13,6 @@ from utils.options import args_parser
 # sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 
-def setup_logger(log_path: str, name: str = "fed") -> logging.Logger:
-    """
-    log to file and terminal at same time。
-    """
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
-    logger.propagate = False
-    if logger.handlers:
-        logger.handlers.clear()
-
-    fmt = logging.Formatter("%(message)s")
-
-    # output to file
-    if log_path:
-        fh = logging.FileHandler(log_path, encoding="utf-8")
-        fh.setLevel(logging.INFO)
-        fh.setFormatter(fmt)
-        logger.addHandler(fh)
-
-    # output to terminal
-    sh = logging.StreamHandler(sys.stdout)
-    sh.setLevel(logging.INFO)
-    sh.setFormatter(fmt)
-    logger.addHandler(sh)
-
-    return logger
-
-
 class FedSim:
     def __init__(self, args):
         self.args = args
@@ -104,6 +76,21 @@ class FedSim:
             csv_path = self.suffix / "acc&time_history.csv"
             np.savetxt(csv_path, data, delimiter=",", header="accuracy,time", comments="", fmt="%.6f")
             self.logger.info(f"Results saved to {csv_path}")
+
+
+def setup_logger(log_path: str | Path, name: str = "fed", level: int = logging.INFO) -> logging.Logger:
+    logger = logging.getLogger(name)
+    if logger.handlers: return logger
+    logger.setLevel(level)
+    logger.propagate = False
+    fmt = logging.Formatter("%(message)s")
+    path = Path(log_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    for h in (logging.StreamHandler(sys.stdout), logging.FileHandler(path, encoding="utf-8")):
+        h.setLevel(level)
+        h.setFormatter(fmt)
+        logger.addHandler(h)
+    return logger
 
 
 if __name__ == "__main__":

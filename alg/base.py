@@ -104,8 +104,8 @@ class BaseClient:
         self.metric['acc'] = 100.00 * correct / total
 
     def reset_optimizer(self, decay=True):
-        if decay:
-            self.scheduler.last_epoch = self.server.round  # set lr decay to current round
+        if decay and self.server.round > 0:
+            self.scheduler.last_epoch = self.server.round - 1
             self.scheduler.step()
 
     def model2tensor(self, params=None):

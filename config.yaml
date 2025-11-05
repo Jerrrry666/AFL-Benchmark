@@ -9,7 +9,7 @@ model_in_cpu: false
 # federated config
 total_num: 20
 sr: 0.1
-rnd: 10
+rnd: 3
 test_gap: 1
 
 # local training config
