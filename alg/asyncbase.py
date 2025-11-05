@@ -5,6 +5,7 @@ from enum import Enum
 import numpy as np
 
 from alg.base import BaseClient, BaseServer
+from utils.run_utils import OnDevice
 
 
 # Usage of Status
@@ -61,7 +62,8 @@ class AsyncBaseServer(BaseServer):
         for c in filter(lambda x: x.status != Status.ACTIVE, self.sampled_clients):
             c.model.train()
             c.reset_optimizer(True)
-            c.run()
+            with OnDevice(c.model, c.device):
+                c.run()
             heapq.heappush(self.client_queue, (self.wall_clock_time + c.training_time, c))
             c.status = Status.ACTIVE
 

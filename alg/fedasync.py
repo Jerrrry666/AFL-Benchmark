@@ -1,5 +1,5 @@
 from alg.asyncbase import AsyncBaseClient, AsyncBaseServer
-from utils.time_utils import time_record
+from utils.run_utils import time_record
 
 
 def add_args(parser):

@@ -3,7 +3,7 @@ import torch
 from sklearn.cluster import AgglomerativeClustering
 
 from alg.clusterbase import Cluster, ClusterClient, ClusterServer
-from utils.time_utils import time_record
+from utils.run_utils import time_record
 
 
 def add_args(parser):

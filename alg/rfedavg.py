@@ -1,7 +1,7 @@
 import torch
 
 from alg.base import BaseClient, BaseServer
-from utils.time_utils import time_record
+from utils.run_utils import time_record
 
 
 def mmd(X, Y):

@@ -117,12 +117,14 @@ For **synchronous** FL baselines, the `run()` follows a basic pipeline of:
 
 ```python
 from alg.base import BaseServer, BaseClient
-from utils.time_utils import time_record
+from utils.run_utils import time_record
+
 
 class Client(BaseClient):
     @time_record
     def run(self):
         self.train()
+
 
 class Server(BaseServer):
     def run(self):
@@ -137,7 +139,8 @@ For asynchronous FL baselines, the `run()` follows a basic pipeline of:
 
 ```python
 from alg.asyncbase import AsyncBaseServer, AsyncBaseClient
-from utils.time_utils import time_record
+from utils.run_utils import time_record
+
 
 class Client(AsyncBaseClient):
     @time_record

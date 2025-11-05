@@ -4,6 +4,7 @@ suffix: default
 device: 1
 dataset: mnist
 model: mlp
+model_in_cpu: false
 
 # federated config
 total_num: 100

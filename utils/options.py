@@ -13,6 +13,7 @@ def args_parser():
     parser.add_argument('--device', type=int, help="Device to use")
     parser.add_argument('--dataset', type=str, help="Dataset")
     parser.add_argument('--model', type=str, help="Model")
+    parser.add_argument('--model_in_cpu', action='store_true')
 
     # ===== Federated Setting =====
     parser.add_argument('--total_num', type=int, help="Total clients num")

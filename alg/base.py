@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 
 from model.config import load_model
 from utils.data_utils import read_client_data
+from utils.run_utils import OnDevice
 from utils.sys_utils import comm_config, device_config
 
 
@@ -25,10 +26,11 @@ class BaseClient:
         self.epoch = args.epoch
         self.model = load_model(args).to(args.device)
         self.loss_func = nn.CrossEntropyLoss()
-        self.optim = torch.optim.SGD(params=self.model.parameters(),
+        self.optim = torch.optim.SGD(self.model.parameters(),
                                      lr=self.lr,
                                      momentum=0.9,
                                      weight_decay=1e-4)
+        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optim, gamma=args.gamma)
         self.metric = {'loss': [], 'acc': []}
 
         if self.dataset_train is not None:
@@ -54,7 +56,7 @@ class BaseClient:
         raise NotImplementedError
 
     def train(self):
-        # === train ===
+        self.model.train()
         total_loss = 0.0
 
         for epoch in range(self.epoch):
@@ -98,10 +100,8 @@ class BaseClient:
         self.metric['acc'] = 100.00 * correct / total
 
     def reset_optimizer(self, decay=True):
-        if not decay:
-            return
-        for param_group in self.optim.param_groups:
-            param_group['lr'] = self.lr * (self.args.gamma ** self.server.round)
+        if decay:
+            self.scheduler.step()
 
     def model2tensor(self, params=None):
         alg_module = importlib.import_module(f'alg.{self.args.alg}')
@@ -177,7 +177,8 @@ class BaseServer(BaseClient):
         for client in self.sampled_clients:
             client.model.train()
             client.reset_optimizer()
-            client.run()
+            with OnDevice(client.model, client.device):
+                client.run()
         self.wall_clock_time += max([client.training_time for client in self.sampled_clients])
 
     def uplink(self):
