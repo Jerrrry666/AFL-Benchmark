@@ -30,7 +30,8 @@ class BaseClient:
                                      lr=self.lr,
                                      momentum=0.9,
                                      weight_decay=1e-4)
-        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optim, gamma=args.gamma)
+        self.gamma = args.gamma
+        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optim, gamma=self.gamma)
         self.metric = {'loss': [], 'acc': []}
 
         if self.dataset_train is not None:
@@ -101,6 +102,7 @@ class BaseClient:
 
     def reset_optimizer(self, decay=True):
         if decay:
+            self.scheduler.last_epoch = self.server.round  # set lr decay to current round
             self.scheduler.step()
 
     def model2tensor(self, params=None):

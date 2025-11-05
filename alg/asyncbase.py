@@ -19,14 +19,9 @@ class Status(Enum):
 
 class AsyncBaseClient(BaseClient):
     def __init__(self, id, args):
+        self.gamma = args.gamma ** (1 / int(self.args.total_num * self.args.sr))  # adapt LR decay gamma for Async
         super().__init__(id, args)
         self.status = Status.IDLE
-
-    def reset_optimizer(self, decay=True):
-        if not decay:
-            return
-        for param_group in self.optim.param_groups:
-            param_group['lr'] =  self.lr * (self.args.gamma ** (self.server.round / int(self.args.total_num * self.args.sr)))
 
     def run(self):
         raise NotImplementedError
@@ -93,6 +88,6 @@ class AsyncBaseServer(BaseServer):
             self.metric['acc'].append(client.metric['acc'])
 
         return {
-            'acc': np.mean(self.metric['acc']),
+            'acc'    : np.mean(self.metric['acc']),
             'acc_std': np.std(self.metric['acc']),
         }
