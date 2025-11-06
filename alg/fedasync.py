@@ -43,4 +43,4 @@ class Server(AsyncBaseServer):
 
         decay = self.decay * weight_decay()
         t_aggr = decay * self.cur_client.model2shared_tensor() + (1 - decay) * self.model2shared_tensor()
-        self.tensor2model(t_aggr)
+        self.shared_tensor2model(t_aggr)

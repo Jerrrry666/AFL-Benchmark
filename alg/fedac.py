@@ -22,7 +22,7 @@ class Client(AsyncBaseClient):
         self.prev_model = self.model2shared_tensor()
 
         self.train()
-        self.tensor2model(self.model2shared_tensor() - self.lr * (self.server.C - self.C))
+        self.shared_tensor2model(self.model2shared_tensor() - self.lr * (self.server.C - self.C))
 
         cur_model = self.model2shared_tensor()
         hat_C = (self.prev_model - cur_model) / (self.epoch * self.lr) - (self.server.C - self.C)
@@ -86,7 +86,7 @@ class Server(AsyncBaseServer):
             m_hat = self.beta1 * self.m + (1 - self.beta1) * dW
             model_g = self.model2shared_tensor() + self.eta_g * m_hat / (torch.sqrt(self.v) + self.epsilon)
 
-            self.tensor2model(model_g)
+            self.shared_tensor2model(model_g)
 
             # update c
             self.C += sum([w * dC for w, dC in zip(w_list, self.dC_buffer)])

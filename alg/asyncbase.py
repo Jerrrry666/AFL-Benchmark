@@ -67,7 +67,7 @@ class AsyncBaseServer(BaseServer):
 
     def aggregate(self):
         t_aggr = self.decay * self.cur_client.model2shared_tensor() + (1 - self.decay) * self.model2shared_tensor()
-        self.tensor2model(t_aggr)
+        self.shared_tensor2model(t_aggr)
 
     def update_status(self):
         # set the current client to idle
@@ -84,7 +84,7 @@ class AsyncBaseServer(BaseServer):
             context = client.model2shared_tensor()
             client.clone_model(self)
             client.local_test()
-            client.tensor2model(context)
+            client.shared_tensor2model(context)
             self.metric['acc'].append(client.metric['acc'])
 
         return {

@@ -70,7 +70,7 @@ class Server(AsyncBaseServer):
         zeta = self.cur_client.zeta_grad
         model_g = self.model2shared_tensor()
         model_g -= (zeta * len(self.cur_client.dataset_train)) / sum(len(c.dataset_train) for c in self.clients)
-        self.tensor2model(model_g)
+        self.shared_tensor2model(model_g)
 
         # update w with feature learning
         # def feature_update(W):

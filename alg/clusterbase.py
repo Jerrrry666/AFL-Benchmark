@@ -11,7 +11,7 @@ class ClusterClient(BaseClient):
     def clone_model(self, target):
         target_cluster = target.cluster_list[self.cluster_id]
         p_tensor = target_cluster.model
-        self.tensor2model(p_tensor)
+        self.shared_tensor2model(p_tensor)
 
 
 class ClusterServer(BaseServer):

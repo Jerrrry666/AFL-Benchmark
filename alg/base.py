@@ -86,13 +86,8 @@ class BaseClient:
         self.metric['loss'] = total_loss / len(self.loader_train)
 
     def clone_model(self, source):
-        p_tensor = source.model2shared_tensor()
-
-        self.tensor2model(self, p_tensor)
-
-    @staticmethod
-    def _clone_model(target, source_tensor):
-        target.tensor2model(source_tensor)
+        shared_tensor = source.model2shared_tensor()
+        self.shared_tensor2model(shared_tensor)
 
     def preprocess(self, data):
         X, y = data
@@ -145,8 +140,7 @@ class BaseClient:
 
     def model2personalized_tensor(self):
         if not self.p_flag: return None
-        inverted_flags = [not f for f in self.keep_local]
-        return self._model2tensor(self.model, inverted_flags)
+        return self._model2tensor(self.model, self.keep_local)
 
     # def tensor2model(self, tensor, params=None):
     #     alg_module = importlib.import_module(f'alg.{self.args.alg}')
@@ -175,8 +169,7 @@ class BaseClient:
 
     def tensor2personalized(self, tensor):
         if not self.p_flag: return
-        inverted_flags = [not f for f in self.keep_local]
-        self._tensor2model(tensor, self.model, inverted_flags)
+        self._tensor2model(tensor, self.model, self.keep_local)
 
     def comm_bytes(self):
         model_tensor = self.model2shared_tensor()
@@ -245,7 +238,7 @@ class BaseServer(BaseClient):
 
         self.received_params = [params * weight for weight, params in zip(weights, self.received_params)]
         avg_tensor = sum(self.received_params)
-        self.tensor2model(avg_tensor)
+        self.shared_tensor2model(avg_tensor)
 
     def test_all(self):
         self.metric['acc'] = []

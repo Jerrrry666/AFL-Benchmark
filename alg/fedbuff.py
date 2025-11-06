@@ -37,6 +37,6 @@ class Server(AsyncBaseServer):
         if len(self.buffer) == self.args.k:
             t_g = self.model2shared_tensor()
             t_g_new = t_g + self.args.etag * torch.mean(torch.stack(self.buffer), dim=0) / self.args.k
-            self.tensor2model(t_g_new)
+            self.shared_tensor2model(t_g_new)
 
             self.buffer = []

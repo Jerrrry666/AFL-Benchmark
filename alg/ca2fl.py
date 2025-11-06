@@ -52,7 +52,7 @@ class Server(AsyncBaseServer):
 
             t_g = self.model2shared_tensor()
             t_g_new = t_g + self.eta * v_t
-            self.tensor2model(t_g_new)
+            self.shared_tensor2model(t_g_new)
 
     def update_status(self):
         # set the current client to idle

@@ -87,4 +87,4 @@ class Server(AsyncBaseServer):
 
         t_g = self.model2shared_tensor()
         t_g_new = t_g + eta_t * self.m / (torch.sqrt(self.v) + self.epsilon)
-        self.tensor2model(t_g_new)
+        self.shared_tensor2model(t_g_new)

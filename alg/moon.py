@@ -34,19 +34,19 @@ class Client(BaseClient):
 
                 if self.prev_m is not None:
                     # output for global model
-                    self.tensor2model(gm)
+                    self.shared_tensor2model(gm)
                     with torch.no_grad():
                         _, rep_g = self.model(X, return_feat=True)
                         rep_g = rep_g.detach()
 
                     # output for prev model
-                    self.tensor2model(self.prev_m)
+                    self.shared_tensor2model(self.prev_m)
                     with torch.no_grad():
                         _, rep_prev = self.model(X, return_feat=True)
                         rep_prev = rep_prev.detach()
 
                 # output for current model
-                self.tensor2model(pm)
+                self.shared_tensor2model(pm)
                 preds, rep = self.model(X, return_feat=True)
 
                 loss = self.loss_func(preds, y)

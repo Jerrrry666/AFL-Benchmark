@@ -94,7 +94,7 @@ class Server(AsyncBaseServer):
         if AGGR and len(self.buffer) >= 3: 
             self.last_aggr_time = self.wall_clock_time
             self.AGGR = True
-            self.tensor2model(sum(self.buffer) / len(self.buffer))
+            self.shared_tensor2model(sum(self.buffer) / len(self.buffer))
         else:
             self.AGGR = False
 

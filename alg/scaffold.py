@@ -19,7 +19,7 @@ class Client(BaseClient):
     def run(self):
         prev_model = self.model2shared_tensor()
         self.train()
-        self.tensor2model(self.model2shared_tensor() - self.lr * (self.server.C - self.C))
+        self.shared_tensor2model(self.model2shared_tensor() - self.lr * (self.server.C - self.C))
         C_plus = self.C - self.server.C + (prev_model - self.model2shared_tensor()) / (self.epoch * self.lr)
         self.delta_C = C_plus - self.C
         self.C = C_plus
@@ -54,5 +54,5 @@ class Server(BaseServer):
         delta_C_avg = sum(self.received_C) / len(self.received_C)
         delta_W_avg = sum(self.received_params) / len(self.received_params)
 
-        self.tensor2model(self.model2shared_tensor() + self.eta_g * delta_W_avg)
+        self.shared_tensor2model(self.model2shared_tensor() + self.eta_g * delta_W_avg)
         self.C += delta_C_avg * len(self.sampled_clients) / self.client_num

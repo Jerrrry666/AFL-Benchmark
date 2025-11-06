@@ -127,7 +127,7 @@ class Server(AsyncBaseServer):
                 weights.append(b['size'] * (s_discount + i_discount))
             weights = torch.tensor(weights) / torch.sum(torch.tensor(weights))
             aggr_tensor = sum(b['update'] * w for b, w in zip(self.buffer, weights))
-            self.tensor2model(aggr_tensor)
+            self.shared_tensor2model(aggr_tensor)
             self.prev_model = aggr_tensor
 
     def notify(self):
