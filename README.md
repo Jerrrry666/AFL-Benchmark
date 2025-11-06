@@ -1,5 +1,10 @@
 # AFL-Lib
 
+## New feature
+- Support multi-card parallelly training instead of sequentially.
+- Now we can resume training process from checkpoint! Add save and load checkpoint module. 
+
+
 🔥 **Asynchronous Federated Learning (AFL)** Library and Benchmark.
 
 Currently, we support: 
