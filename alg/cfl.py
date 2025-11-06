@@ -15,13 +15,13 @@ def add_args(parser):
 class Client(ClusterClient):
     def __init__(self, id, args):
         super().__init__(id, args)
-        self.dW = self.model2tensor()
+        self.dW = self.model2shared_tensor()
 
     @time_record
     def run(self):
-        t_old = self.model2tensor()
+        t_old = self.model2shared_tensor()
         self.train()
-        self.dW = self.model2tensor() - t_old
+        self.dW = self.model2shared_tensor() - t_old
 
 class Server(ClusterServer):
     def __init__(self, id, args, clients):

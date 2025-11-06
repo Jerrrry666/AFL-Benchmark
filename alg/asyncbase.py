@@ -66,7 +66,7 @@ class AsyncBaseServer(BaseServer):
         self.wall_clock_time, self.cur_client = heapq.heappop(self.client_queue)
 
     def aggregate(self):
-        t_aggr = self.decay * self.cur_client.model2tensor() + (1 - self.decay) * self.model2tensor()
+        t_aggr = self.decay * self.cur_client.model2shared_tensor() + (1 - self.decay) * self.model2shared_tensor()
         self.tensor2model(t_aggr)
 
     def update_status(self):
@@ -81,7 +81,7 @@ class AsyncBaseServer(BaseServer):
         self.metric['acc'] = []
         for client in self.clients:
             # NOTE: have to store current local model
-            context = client.model2tensor()
+            context = client.model2shared_tensor()
             client.clone_model(self)
             client.local_test()
             client.tensor2model(context)

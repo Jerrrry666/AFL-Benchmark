@@ -84,7 +84,7 @@ class Server(AsyncBaseServer):
 
     
     def aggregate(self):
-        self.buffer.append(self.cur_client.model2tensor())
+        self.buffer.append(self.cur_client.model2shared_tensor())
         
         slowest_time = max(self.profiled_latency)
         current_b = max(5, min(self.b, 15))  

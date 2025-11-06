@@ -13,9 +13,9 @@ def add_args(parser):
 class Client(AsyncBaseClient):
     @time_record
     def run(self):
-        w_last = self.model2tensor()
+        w_last = self.model2shared_tensor()
         self.train()
-        self.dW = self.model2tensor() -  w_last
+        self.dW = self.model2shared_tensor() - w_last
 
 
 class Server(AsyncBaseServer):
@@ -35,7 +35,7 @@ class Server(AsyncBaseServer):
         self.buffer.append(self.cur_client.dW)
 
         if len(self.buffer) == self.args.k:
-            t_g = self.model2tensor()
+            t_g = self.model2shared_tensor()
             t_g_new = t_g + self.args.etag * torch.mean(torch.stack(self.buffer), dim=0) / self.args.k
             self.tensor2model(t_g_new)
 

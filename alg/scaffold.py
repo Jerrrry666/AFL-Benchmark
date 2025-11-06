@@ -11,28 +11,28 @@ def add_args(parser):
 class Client(BaseClient):
     def __init__(self, id, args):
         super().__init__(id, args)
-        self.C = torch.zeros_like(self.model2tensor())
-        self.delta_C = torch.zeros_like(self.model2tensor())
-        self.delta_W = torch.zeros_like(self.model2tensor())
+        self.C = torch.zeros_like(self.model2shared_tensor())
+        self.delta_C = torch.zeros_like(self.model2shared_tensor())
+        self.delta_W = torch.zeros_like(self.model2shared_tensor())
 
     @time_record
     def run(self):
-        prev_model = self.model2tensor()
+        prev_model = self.model2shared_tensor()
         self.train()
-        self.tensor2model(self.model2tensor() - self.lr * (self.server.C - self.C))
-        C_plus = self.C - self.server.C + (prev_model - self.model2tensor()) / (self.epoch * self.lr)
+        self.tensor2model(self.model2shared_tensor() - self.lr * (self.server.C - self.C))
+        C_plus = self.C - self.server.C + (prev_model - self.model2shared_tensor()) / (self.epoch * self.lr)
         self.delta_C = C_plus - self.C
         self.C = C_plus
-        self.delta_W = self.model2tensor() - prev_model
+        self.delta_W = self.model2shared_tensor() - prev_model
 
     def comm_bytes(self):
-        model_tensor = self.model2tensor()
+        model_tensor = self.model2shared_tensor()
         return model_tensor.numel() * model_tensor.element_size() + self.C.numel() + self.C.element_size()
 
 class Server(BaseServer):
     def __init__(self, id, args, clients):
         super().__init__(id, args, clients)
-        self.C = torch.zeros_like(self.model2tensor())
+        self.C = torch.zeros_like(self.model2shared_tensor())
         self.eta_g = args.eta_g
 
     def run(self):
@@ -54,5 +54,5 @@ class Server(BaseServer):
         delta_C_avg = sum(self.received_C) / len(self.received_C)
         delta_W_avg = sum(self.received_params) / len(self.received_params)
 
-        self.tensor2model(self.model2tensor() + self.eta_g * delta_W_avg)
+        self.tensor2model(self.model2shared_tensor() + self.eta_g * delta_W_avg)
         self.C += delta_C_avg * len(self.sampled_clients) / self.client_num

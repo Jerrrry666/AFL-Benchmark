@@ -37,7 +37,7 @@ class Server(AsyncBaseServer):
         alpha_sum_i = self.alpha_sum[client_id]
         alpha_i = min(1, d_i / len(self.clients) * (self.v + 1) - alpha_sum_i)
 
-        t_aggr = alpha_i * self.cur_client.model2tensor() + (1 - alpha_i) * self.model2tensor()
+        t_aggr = alpha_i * self.cur_client.model2shared_tensor() + (1 - alpha_i) * self.model2shared_tensor()
         self.tensor2model(t_aggr)
 
         self.v += 1

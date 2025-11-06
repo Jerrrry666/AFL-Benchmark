@@ -108,14 +108,14 @@ class Server(AsyncBaseServer):
         if self.prev_model is None:
             return self.beta
 
-        delta_g = self.model2tensor() - self.prev_model
+        delta_g = self.model2shared_tensor() - self.prev_model
         cosine_sim = torch.cosine_similarity(c_update.view(-1), delta_g.view(-1), dim=0)
         return self.beta * (cosine_sim + 1) / 2
 
     def aggregate(self):
         self.buffer.append({
             'id': self.cur_client.id,
-            'update': self.cur_client.model2tensor(),
+            'update': self.cur_client.model2shared_tensor(),
             'size': len(self.cur_client.dataset_train),
         })
 

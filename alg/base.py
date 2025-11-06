@@ -39,8 +39,10 @@ class BaseClient:
 
         # === personalized model ===
         self.p_flag = False
-        self.p_params = [False for _ in self.model.parameters()] if self.p_flag \
+        # keep_local (Ture:local, False:shared)
+        self.keep_local = [False for _ in self.model.parameters()] if not self.p_flag \
             else [True for _ in self.model.parameters()]  # default: all global, no personalized
+        self.share_flag = [not f for f in self.keep_local]
 
         if self.dataset_train is not None:
             self.loader_train = DataLoader(
@@ -84,8 +86,9 @@ class BaseClient:
         self.metric['loss'] = total_loss / len(self.loader_train)
 
     def clone_model(self, source):
-        p_tensor = source.model2tensor()
-        self._clone_model(self, p_tensor)
+        p_tensor = source.model2shared_tensor()
+
+        self.tensor2model(self, p_tensor)
 
     @staticmethod
     def _clone_model(target, source_tensor):
@@ -129,17 +132,20 @@ class BaseClient:
     #                       if selected is True], dim=0)
 
     @staticmethod
-    def _model2tensor(model, p_params):
-        selected_param = [p.detach() for is_p, p in zip(p_params, model.parameters()) if not is_p]
-        if not selected_param:
-            return None
+    def _model2tensor(model, pick_flag):
+        """
+        Only pick the parameters with pick_flag == True
+        """
+        if not pick_flag: return None
+        selected_param = [p.detach() for pick, p in zip(pick_flag, model.parameters()) if pick]
         return parameters_to_vector(selected_param).detach()
 
-    def model2tensor(self):
-        return self._model2tensor(self.model, self.p_params)
+    def model2shared_tensor(self):
+        return self._model2tensor(self.model, self.share_flag)
 
-    def personalized2tensor(self):
-        inverted_flags = [not f for f in self.p_params]
+    def model2personalized_tensor(self):
+        if not self.p_flag: return None
+        inverted_flags = [not f for f in self.keep_local]
         return self._model2tensor(self.model, inverted_flags)
 
     # def tensor2model(self, tensor, params=None):
@@ -158,22 +164,22 @@ class BaseClient:
     #                 param_index += param_size
 
     @staticmethod
-    def _tensor2model(tensor, model, p_params):
-        selected_params = [p for is_p, p in zip(p_params, model.parameters()) if not is_p]
-        if not selected_params: return
+    def _tensor2model(tensor, model, pick_flag):
+        if not pick_flag: return
+        selected_params = [p for pick, p in zip(pick_flag, model.parameters()) if pick]
         with torch.no_grad():
             vector_to_parameters(tensor.to(selected_params[0].device), selected_params)
 
-    def tensor2model(self, tensor):
-        self._tensor2model(tensor, self.model, self.p_params)
+    def shared_tensor2model(self, tensor):
+        self._tensor2model(tensor, self.model, self.share_flag)
 
     def tensor2personalized(self, tensor):
-        if tensor is None: return
-        inverted_flags = [not f for f in self.p_params]
+        if not self.p_flag: return
+        inverted_flags = [not f for f in self.keep_local]
         self._tensor2model(tensor, self.model, inverted_flags)
 
     def comm_bytes(self):
-        model_tensor = self.model2tensor()
+        model_tensor = self.model2shared_tensor()
         return model_tensor.numel() * model_tensor.element_size()
 
 
@@ -230,7 +236,7 @@ class BaseServer(BaseClient):
         def nan_to_zero(tensor):
             return torch.where(torch.isnan(tensor), torch.zeros_like(tensor), tensor)
 
-        self.received_params = [nan_to_zero(client.model2tensor()) for client in self.sampled_clients]
+        self.received_params = [nan_to_zero(client.model2shared_tensor()) for client in self.sampled_clients]
 
     def aggregate(self):
         assert (len(self.sampled_clients) > 0)

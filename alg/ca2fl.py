@@ -16,9 +16,9 @@ class Client(AsyncBaseClient):
         
     @time_record
     def run(self):
-        w_last = self.model2tensor()
+        w_last = self.model2shared_tensor()
         self.train()
-        self.dW = self.model2tensor() - w_last
+        self.dW = self.model2shared_tensor() - w_last
 
 
 class Server(AsyncBaseServer):
@@ -26,8 +26,8 @@ class Server(AsyncBaseServer):
         super().__init__(args, clients)
         self.buffer = []
         self.buffer_clients = []
-        self.h_cache = [torch.zeros_like(self.model2tensor()) for _ in self.clients]
-        self.momentum_cache = torch.zeros_like(self.model2tensor())
+        self.h_cache = [torch.zeros_like(self.model2shared_tensor()) for _ in self.clients]
+        self.momentum_cache = torch.zeros_like(self.model2shared_tensor())
         self.M = args.M
         self.eta = args.eta
 
@@ -50,7 +50,7 @@ class Server(AsyncBaseServer):
                 self.buffer)
             v_t = h_t + calibration
 
-            t_g = self.model2tensor()
+            t_g = self.model2shared_tensor()
             t_g_new = t_g + self.eta * v_t
             self.tensor2model(t_g_new)
 

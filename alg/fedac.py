@@ -15,16 +15,16 @@ def add_args(parser):
 class Client(AsyncBaseClient):
     def __init__(self, id, args):
         super().__init__(id, args)
-        self.C = torch.zeros_like(self.model2tensor())
+        self.C = torch.zeros_like(self.model2shared_tensor())
 
     @time_record
     def run(self):
-        self.prev_model = self.model2tensor()
+        self.prev_model = self.model2shared_tensor()
 
         self.train()
-        self.tensor2model(self.model2tensor() - self.lr * (self.server.C - self.C))
+        self.tensor2model(self.model2shared_tensor() - self.lr * (self.server.C - self.C))
 
-        cur_model = self.model2tensor()
+        cur_model = self.model2shared_tensor()
         hat_C = (self.prev_model - cur_model) / (self.epoch * self.lr) - (self.server.C - self.C)
         self.dC = hat_C - self.C
         self.C = hat_C
@@ -32,15 +32,15 @@ class Client(AsyncBaseClient):
         self.dW = cur_model - self.prev_model
 
     def comm_bytes(self):
-        model_tensor = self.model2tensor()
+        model_tensor = self.model2shared_tensor()
         return model_tensor.numel() * model_tensor.element_size() + self.C.numel() + self.C.element_size()
 
 class Server(AsyncBaseServer):
     def __init__(self, args, clients):
         super().__init__(args, clients)
-        self.C = torch.zeros_like(self.model2tensor())
-        self.m = torch.zeros_like(self.model2tensor())
-        self.v = torch.zeros_like(self.model2tensor())
+        self.C = torch.zeros_like(self.model2shared_tensor())
+        self.m = torch.zeros_like(self.model2shared_tensor())
+        self.v = torch.zeros_like(self.model2shared_tensor())
 
 
         self.beta1 = args.beta1
@@ -72,7 +72,7 @@ class Server(AsyncBaseServer):
             # compute w_i
             r_list = []
             for dW, prev_model in zip(self.dW_buffer, self.prev_model_buffer):
-                delta_global = (self.model2tensor() - prev_model) if self.round > self.buffer_size else self.model2tensor()
+                delta_global = (self.model2shared_tensor() - prev_model) if self.round > self.buffer_size else self.model2shared_tensor()
                 r = torch.nn.functional.cosine_similarity(delta_global, dW, dim=0).item()
                 r_list.append(max(r, 0.1))
             w_list = [r / (sum(r_list) + self.epsilon) for r in r_list]
@@ -84,7 +84,7 @@ class Server(AsyncBaseServer):
             self.v = self.beta2 * self.v + (1 - self.beta2) * (dW ** 2)
 
             m_hat = self.beta1 * self.m + (1 - self.beta1) * dW
-            model_g = self.model2tensor() + self.eta_g * m_hat / (torch.sqrt(self.v) + self.epsilon)
+            model_g = self.model2shared_tensor() + self.eta_g * m_hat / (torch.sqrt(self.v) + self.epsilon)
 
             self.tensor2model(model_g)
 

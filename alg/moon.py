@@ -23,7 +23,7 @@ class Client(BaseClient):
         self.train()
 
     def train(self):
-        gm = self.model2tensor() # this is only param.data, without grad
+        gm = self.model2shared_tensor() # this is only param.data, without grad
         total_loss = 0.0
         batch_loss = []
         for epoch in range(self.epoch):
@@ -62,7 +62,7 @@ class Client(BaseClient):
 
                 total_loss += loss.item()
         self.metric['loss'] = total_loss / len(self.loader_train)
-        self.prev_m = self.model2tensor()
+        self.prev_m = self.model2shared_tensor()
         del gm
 
 class Server(BaseServer):

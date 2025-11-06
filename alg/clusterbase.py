@@ -20,14 +20,14 @@ class ClusterServer(BaseServer):
 
         self.cluster_num = args.cluster_num if 'cluster_num' in args.__dict__ else 1
         assert self.cluster_num > 0
-        self.cluster_list = [Cluster(idx, self.model2tensor()) for idx in range(self.cluster_num)]
+        self.cluster_list = [Cluster(idx, self.model2shared_tensor()) for idx in range(self.cluster_num)]
 
     def uplink(self):
         assert (len(self.sampled_clients) > 0)
         def nan_to_zero(tensor):
             return torch.where(torch.isnan(tensor), torch.zeros_like(tensor), tensor)
         for cluster in self.cluster_list:
-            cluster.received_params = [nan_to_zero(client.model2tensor())
+            cluster.received_params = [nan_to_zero(client.model2shared_tensor())
                                        for client in self.sampled_clients
                                        if client.cluster_id == cluster.id]
 

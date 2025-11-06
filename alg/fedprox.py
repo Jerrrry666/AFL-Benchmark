@@ -18,7 +18,7 @@ class Client(BaseClient):
         self.train()
 
     def train(self):
-        gm = self.model2tensor() # this is only param.data, without grad
+        gm = self.model2shared_tensor() # this is only param.data, without grad
         total_loss = 0.0
         for epoch in range(self.epoch):
             for idx, data in enumerate(self.loader_train):

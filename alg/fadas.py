@@ -18,9 +18,9 @@ def add_args(parser):
 class Client(AsyncBaseClient):
     @time_record
     def run(self):
-        w_before = self.model2tensor()
+        w_before = self.model2shared_tensor()
         self.train()
-        self.dW = self.model2tensor() - w_before
+        self.dW = self.model2shared_tensor() - w_before
 
 
 class Server(AsyncBaseServer):
@@ -85,6 +85,6 @@ class Server(AsyncBaseServer):
         max_delay = max(self.buffer_delays)
         eta_t = min(self.eta, self.eta / max_delay) if max_delay > self.tau_c else self.eta
 
-        t_g = self.model2tensor()
+        t_g = self.model2shared_tensor()
         t_g_new = t_g + eta_t * self.m / (torch.sqrt(self.v) + self.epsilon)
         self.tensor2model(t_g_new)

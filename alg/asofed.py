@@ -25,7 +25,7 @@ class Client(AsyncBaseClient):
         self.train()
 
     def train(self):
-        w_global = self.model2tensor()
+        w_global = self.model2shared_tensor()
         
         total_loss = 0.0
         for epoch in range(self.epoch):
@@ -34,7 +34,7 @@ class Client(AsyncBaseClient):
                 preds = self.model(X)
                 loss = self.loss_func(preds, y)
                
-                w_local = self.model2tensor()
+                w_local = self.model2shared_tensor()
                 loss += (self.lam / 2) * torch.norm(w_local - w_global, p=2)
 
                 self.optim.zero_grad()
@@ -45,7 +45,7 @@ class Client(AsyncBaseClient):
         self.metric['loss'] = total_loss / len(self.loader_train)
 
         # Line 11 - Compute s_grad
-        s_grad = w_global - self.model2tensor()
+        s_grad = w_global - self.model2shared_tensor()
 
         # Line 12 - set h_prev
         if self.h is None: self.h = torch.zeros_like(s_grad)
@@ -68,7 +68,7 @@ class Server(AsyncBaseServer):
     def aggregate(self):
         # update w
         zeta = self.cur_client.zeta_grad
-        model_g = self.model2tensor()
+        model_g = self.model2shared_tensor()
         model_g -= (zeta * len(self.cur_client.dataset_train)) / sum(len(c.dataset_train) for c in self.clients)
         self.tensor2model(model_g)
 

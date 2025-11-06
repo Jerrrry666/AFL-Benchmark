@@ -1,6 +1,7 @@
 # basic config
 alg: fedavg
-suffix: default
+suffix: teest1
+#resume_round: 3
 device: 1
 dataset: cifar10
 model: resnet18
@@ -9,7 +10,7 @@ model_in_cpu: false
 # federated config
 total_num: 20
 sr: 0.1
-rnd: 3
+rnd: 5
 test_gap: 1
 
 # local training config
