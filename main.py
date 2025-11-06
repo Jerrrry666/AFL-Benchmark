@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import torch
 from tqdm import tqdm
 
 from alg.asyncbase import AsyncBaseServer
@@ -17,23 +18,46 @@ class FedSim:
     def __init__(self, args):
         self.args = args
         self.suffix = Path("logs") / args.suffix
-        self.suffix.mkdir(parents=True, exist_ok=True)
-
-        # backup config.yaml
-        import shutil
-        shutil.copy("config.yaml",
-                    self.suffix / f"{args.alg}_{args.dataset}_{args.model}_{args.total_num}c_{args.epoch}E_lr{args.lr}.yaml")
-
-        # === logger path ===
-        logger_path = self.suffix / f"{args.alg}_{args.dataset}_{args.model}_{args.total_num}c_{args.epoch}E_lr{args.lr}.log"
-        self.logger = setup_logger(str(logger_path))
+        self.begin_round = 0
+        self.resume_round = args.resume_round if args.resume_round != -1 else 'max'
 
         # === load trainer ===
         alg_module = importlib.import_module(f"alg.{args.alg}")
 
         # === init clients & server ===
-        self.clients = [alg_module.Client(idx, args) for idx in tqdm(range(args.total_num))]
+        self.clients = [alg_module.Client(idx, args) for idx in tqdm(range(args.total_num), desc='Building clients')]
         self.server = alg_module.Server(args, self.clients)
+
+        # === check if suffix dir exists and config matches ===
+        can_resume = False
+        log_cache = None
+        if self.suffix.exists():
+            existing_configs = list(self.suffix.glob("*.yaml"))
+            if existing_configs:
+                from utils.options import compare_configs
+                can_resume = compare_configs('config.yaml', existing_configs[0])
+                log_cache = f"Resuming training under {self.suffix}..." if can_resume else f"\nConfig mismatch, creating new directory."
+            else:
+                log_cache = f"No config found in {self.suffix}, starting new training run."
+            print(log_cache)
+        self.suffix.mkdir(parents=True, exist_ok=True)
+        # backup current config
+        import shutil
+        config_target = self.suffix / f"{args.alg}_{args.dataset}_{args.model}_{args.total_num}c_{args.epoch}E_lr{args.lr}.yaml"
+        shutil.copy("config.yaml", config_target)
+
+        # === logger path ===
+        logger_path = self.suffix / f"{args.alg}_{args.dataset}_{args.model}_{args.total_num}c_{args.epoch}E_lr{args.lr}.log"
+        self.logger = setup_logger(str(logger_path))
+        self.logger.info(log_cache) if log_cache is not None else None
+
+        # === resume if possible ===
+        if can_resume:
+            try:
+                self.begin_round = self.load_checkpoint(begin_round_idx=self.resume_round)
+                self.logger.info(f"Resumed from checkpoint under {self.suffix}.")
+            except Exception as e:
+                self.logger.warning(f"Failed to resume training from {self.suffix}: {e}. Starting new training run.")
 
     def simulate(self):
         acc_list = []
@@ -45,13 +69,18 @@ class FedSim:
             TEST_GAP *= int(self.args.total_num * self.args.sr)
             self.server.total_round *= int(self.args.total_num * self.args.sr)
         try:
-            for rnd in tqdm(range(0, self.server.total_round), desc="Communication Round", leave=False):
+            for rnd in tqdm(range(self.begin_round, self.server.total_round), desc="Communication Round",
+                            initial=self.begin_round, total=self.server.total_round):
                 # ===================== train =====================
                 self.server.round = rnd
                 self.server.run()
 
                 # ===================== test =====================
                 if (self.server.total_round - rnd <= 10) or (rnd % TEST_GAP == (TEST_GAP - 1)):
+                    # optional: snapshot global and per-client states at test rounds
+                    _ = self.save_checkpoint(rnd)
+
+                    # test
                     ret_dict = self.server.test_all()
                     acc = ret_dict["acc"]
                     acc_list.append(acc)
@@ -59,6 +88,7 @@ class FedSim:
                     time_list.append(time)
 
                     self.logger.info(f"[Round {rnd}]\tAcc: {acc:.2f}\t| Time: {time:.2f}s")
+
 
         except KeyboardInterrupt:
             ...
@@ -76,6 +106,81 @@ class FedSim:
             csv_path = self.suffix / "acc&time_history.csv"
             np.savetxt(csv_path, data, delimiter=",", header="accuracy,time", comments="", fmt="%.6f")
             self.logger.info(f"Results saved to {csv_path}")
+
+    def save_checkpoint(self, round_idx: int) -> Path:
+        """
+        Save the server model and all clients' tensors into one file named by round index.
+        Path: logs/<suffix>/checkpoints/round_<r>.pt
+        """
+        ckpt_dir = self.suffix / "checkpoints"
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        ckpt_path = ckpt_dir / f"round_{round_idx}.pt"
+
+        try:
+            # build checkpoint dictionary
+            ckpt_data = {
+                "round"       : round_idx,
+                "server_model": self.server.model.state_dict(),
+                "clients"     : {
+                    client.id: {
+                        "client_personalized_tensor": client.model2personalized_tensor(),
+                    }
+                    for client in self.clients
+                },
+            }
+            torch.save(ckpt_data, ckpt_path)
+        except Exception as e:
+            self.logger.error(f"Failed to save checkpoint at round {round_idx}: {e}")
+            raise
+        return ckpt_path
+
+    def load_checkpoint(self, suffix_dir_path: str | Path | None = None,
+                        begin_round_idx: int | str = 'max') -> None:
+        """
+        Load server and client states from checkpoint file.
+        If suffix_dir_path is provided, it replaces self.suffix.
+        """
+        # 若给定新的 suffix 目录，则替换默认的 self.suffix
+        base_dir = Path(suffix_dir_path) if suffix_dir_path is not None else self.suffix
+        ckpt_dir = base_dir / "checkpoints"
+        if not ckpt_dir.exists():
+            self.logger.error(f"Checkpoint not found: {ckpt_dir}")
+            raise ValueError(f"Checkpoint not found: {ckpt_dir}")
+
+        if begin_round_idx == "max":
+            ckpt_files = sorted(ckpt_dir.glob("round_*.pt"))
+            if not ckpt_files:
+                self.logger.error(f"No checkpoint files found in {ckpt_dir}")
+                return
+            ckpt_path = ckpt_files[-1]
+            begin_round_idx = int(ckpt_path.stem.split("_")[1])
+            if begin_round_idx >= self.server.total_round:
+                self.logger.error(f"Checkpoint round {begin_round_idx} exceeds total rounds {self.server.total_round}.")
+                raise ValueError(f"Checkpoint round {begin_round_idx} exceeds total rounds {self.server.total_round}.")
+        else:
+            ckpt_path = ckpt_dir / f"round_{begin_round_idx}.pt"
+
+        try:
+            ckpt_data = torch.load(ckpt_path, map_location="cpu")
+
+            # === restore server ===
+            self.server.model.load_state_dict(ckpt_data["server_model"])
+            self.server.round = ckpt_data.get("round", begin_round_idx + 1)
+
+            # === restore clients' personalized params ===
+            client_states = ckpt_data.get("clients", {})
+            for client in self.clients:
+                if client.id not in client_states:
+                    self.logger.warning(f"Client {client.id} missing in checkpoint.")
+                    continue
+                client.tensor2personalized(client_states[client.id]["client_personalized_tensor"])
+
+            self.logger.info(f"Resumed from checkpoint from {ckpt_path}")
+            return begin_round_idx + 1
+
+        except Exception as e:
+            self.logger.error(f"Failed to load checkpoint {ckpt_path}: {e}")
+            raise
 
 
 def setup_logger(log_path: str | Path, name: str = "fed", level: int = logging.INFO) -> logging.Logger:

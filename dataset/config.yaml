@@ -7,7 +7,7 @@ client_num: 20  # number of clients
 dir_path: cifar10  # dataset path
 
 # ===== Dirichlet =====
-alpha: 0.1  # Dirichlet distribution parameter, used in 'dir' partition method
+alpha: 10000  # Dirichlet distribution parameter, used in 'dir' partition method
 
 # ===== Pathological =====
 class_per_client: 2  # number of classes per client, used in 'pat' partition method
