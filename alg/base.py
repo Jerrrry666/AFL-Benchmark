@@ -1,9 +1,9 @@
-import importlib
 import random
 
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from torch.utils.data import DataLoader
 
 from model.config import load_model
@@ -36,6 +36,11 @@ class BaseClient:
         self.gamma = args.gamma
         self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optim, gamma=self.gamma)
         self.metric = {'loss': [], 'acc': []}
+
+        # === personalized model ===
+        self.p_flag = False
+        self.p_params = [False for _ in self.model.parameters()] if self.p_flag \
+            else [True for _ in self.model.parameters()]  # default: all global, no personalized
 
         if self.dataset_train is not None:
             self.loader_train = DataLoader(
@@ -78,9 +83,13 @@ class BaseClient:
         # === record loss ===
         self.metric['loss'] = total_loss / len(self.loader_train)
 
-    def clone_model(self, target):
-        p_tensor = target.model2tensor()
-        self.tensor2model(p_tensor)
+    def clone_model(self, source):
+        p_tensor = source.model2tensor()
+        self._clone_model(self, p_tensor)
+
+    @staticmethod
+    def _clone_model(target, source_tensor):
+        target.tensor2model(source_tensor)
 
     def preprocess(self, data):
         X, y = data
@@ -108,31 +117,60 @@ class BaseClient:
             self.scheduler.last_epoch = self.server.round - 1
             self.scheduler.step()
 
-    def model2tensor(self, params=None):
-        alg_module = importlib.import_module(f'alg.{self.args.alg}')
-        p_keys = getattr(alg_module, 'p_keys') if hasattr(alg_module, 'p_keys') else []
-        p_params = [any(key == name.split('.')[0] for key in p_keys)
-                    for name, _ in self.model.named_parameters()]
-        selected_params = params if params is not None else [not is_p for is_p in p_params]
+    # def model2tensor(self, params=None):
+    #     alg_module = importlib.import_module(f'alg.{self.args.alg}')
+    #     p_keys = getattr(alg_module, 'p_keys') if hasattr(alg_module, 'p_keys') else []
+    #     p_params = [any(key == name.split('.')[0] for key in p_keys)
+    #                 for name, _ in self.model.named_parameters()]
+    #     selected_params = params if params is not None else [not is_p for is_p in p_params]
+    #
+    #     return torch.cat([param.detach().view(-1)
+    #                       for selected, param in zip(selected_params, self.model.parameters())
+    #                       if selected is True], dim=0)
 
-        return torch.cat([param.detach().view(-1)
-                          for selected, param in zip(selected_params, self.model.parameters())
-                          if selected is True], dim=0)
+    @staticmethod
+    def _model2tensor(model, p_params):
+        selected_param = [p.detach() for is_p, p in zip(p_params, model.parameters()) if not is_p]
+        if not selected_param:
+            return None
+        return parameters_to_vector(selected_param).detach()
 
-    def tensor2model(self, tensor, params=None):
-        alg_module = importlib.import_module(f'alg.{self.args.alg}')
-        p_keys = getattr(alg_module, 'p_keys') if hasattr(alg_module, 'p_keys') else []
-        p_params = [any(key == name.split('.')[0] for key in p_keys)
-                    for name, _ in self.model.named_parameters()]
-        selected_params = params if params is not None else [not is_p for is_p in p_params]
+    def model2tensor(self):
+        return self._model2tensor(self.model, self.p_params)
 
-        param_index = 0
-        for selected, param in zip(selected_params, self.model.parameters()):
-            if selected:
-                with torch.no_grad():
-                    param_size = param.numel()
-                    param.copy_(tensor[param_index: param_index + param_size].view(param.shape).detach())
-                    param_index += param_size
+    def personalized2tensor(self):
+        inverted_flags = [not f for f in self.p_params]
+        return self._model2tensor(self.model, inverted_flags)
+
+    # def tensor2model(self, tensor, params=None):
+    #     alg_module = importlib.import_module(f'alg.{self.args.alg}')
+    #     p_keys = getattr(alg_module, 'p_keys') if hasattr(alg_module, 'p_keys') else []
+    #     p_params = [any(key == name.split('.')[0] for key in p_keys)
+    #                 for name, _ in self.model.named_parameters()]
+    #     selected_params = params if params is not None else [not is_p for is_p in p_params]
+    #
+    #     param_index = 0
+    #     for selected, param in zip(selected_params, self.model.parameters()):
+    #         if selected:
+    #             with torch.no_grad():
+    #                 param_size = param.numel()
+    #                 param.copy_(tensor[param_index: param_index + param_size].view(param.shape).detach())
+    #                 param_index += param_size
+
+    @staticmethod
+    def _tensor2model(tensor, model, p_params):
+        selected_params = [p for is_p, p in zip(p_params, model.parameters()) if not is_p]
+        if not selected_params: return
+        with torch.no_grad():
+            vector_to_parameters(tensor.to(selected_params[0].device), selected_params)
+
+    def tensor2model(self, tensor):
+        self._tensor2model(tensor, self.model, self.p_params)
+
+    def tensor2personalized(self, tensor):
+        if tensor is None: return
+        inverted_flags = [not f for f in self.p_params]
+        self._tensor2model(tensor, self.model, inverted_flags)
 
     def comm_bytes(self):
         model_tensor = self.model2tensor()
