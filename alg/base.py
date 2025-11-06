@@ -1,4 +1,5 @@
 import random
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import torch
@@ -8,7 +9,7 @@ from torch.utils.data import DataLoader
 
 from model.config import load_model
 from utils.data_utils import read_client_data
-from utils.run_utils import OnDevice
+from utils.run_utils import OnDeviceRun
 from utils.sys_utils import comm_config, device_config
 
 
@@ -20,14 +21,14 @@ class BaseClient:
         self.dataset_path = f'{args.dataset}-{args.total_num}'
         self.dataset_train = read_client_data(self.dataset_path, self.id, is_train=True)
         self.dataset_test = read_client_data(self.dataset_path, self.id, is_train=False)
-        self.device = args.device
+        self.device = None
         self.model_in_cpu = args.model_in_cpu
         self.server = None
 
         self.lr = args.lr
         self.batch_size = args.bs
         self.epoch = args.epoch
-        self.model = load_model(args) if self.model_in_cpu else load_model(args).to(args.device)
+        self.model = load_model(args)
         self.loss_func = nn.CrossEntropyLoss()
         self.optim = torch.optim.SGD(self.model.parameters(),
                                      lr=self.lr,
@@ -176,6 +177,19 @@ class BaseClient:
         return model_tensor.numel() * model_tensor.element_size()
 
 
+# === BOOKMARK: Multiprocessing path retained for later switch-back ===
+def _mp_run_one(client, device, out_q):
+    try:
+        client.model.train()
+        client.reset_optimizer()
+        with OnDeviceRun(client, device) as c:
+            c.run()
+        shared = client.model2shared_tensor().cpu()  # only the global (shared) params
+        out_q.put((client.id, shared, getattr(client, 'training_time', 0.0), None))
+    except Exception as e:
+        out_q.put((getattr(client, 'id', -1), None, 0.0, str(e)))
+
+
 class BaseServer(BaseClient):
     def __init__(self, args, clients):
         self.dataset_train = None
@@ -183,6 +197,11 @@ class BaseServer(BaseClient):
         self.model = None
         self.loss_func = None
         self.optim = None
+
+        self.devices = args.device
+        assert max(self.devices) < torch.cuda.device_count(), 'device not availabel!'
+        if not self.devices: self.devices = ["cpu"]
+
         super().__init__(0, args)
 
         self.client_num = args.total_num
@@ -216,11 +235,28 @@ class BaseServer(BaseClient):
             client.clone_model(self)
 
     def client_update(self):
-        for client in self.sampled_clients:
-            client.model.train()
+        """Threaded client execution for quick testing.
+        NOTE(BOOKMARK): multiprocessing version kept in _mp_run_one / see git history to restore.
+        """
+        assert len(self.sampled_clients) > 0
+        max_workers = len(self.devices)
+
+        def _run_one(client, device):
             client.reset_optimizer()
-            with OnDevice(client.model, client.device, self.model_in_cpu):
-                client.run()
+            with OnDeviceRun(client, device) as c:
+                c.run()
+            return getattr(client, "training_time", 0.0)
+
+        # launch threads with round-robin device assignment
+        futures = []
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            for idx, client in enumerate(self.sampled_clients):
+                device = self.devices[idx % len(self.devices)]
+                futures.append(ex.submit(_run_one, client, device))
+            for f in as_completed(futures):
+                _ = f.result()
+
+        # after all client work done
         self.wall_clock_time += max([client.training_time for client in self.sampled_clients])
 
     def uplink(self):

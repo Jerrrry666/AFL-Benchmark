@@ -1,8 +1,8 @@
 # basic config
 alg: fedavg
 suffix: reload_test
-resume_round: 7
-device: 1
+resume_round: 0
+device: [ 0,1,2 ]
 dataset: cifar10
 model: resnet18
 model_in_cpu: false
