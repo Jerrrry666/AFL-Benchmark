@@ -27,9 +27,9 @@ def args_parser():
     parser.add_argument('--suffix', type=str, help="Suffix for file")
     parser.add_argument('--resume_round', type=int, default=-1, help="Round to resume from, -1 for max")
     parser.add_argument('--device', type=int, help="Device to use")
+    parser.add_argument('--max_per_device', type=int, default=1, help="Maximum concurrent clients per device")
     parser.add_argument('--dataset', type=str, help="Dataset")
     parser.add_argument('--model', type=str, help="Model")
-    parser.add_argument('--model_in_cpu', action='store_true')
 
     # ===== Federated Setting =====
     parser.add_argument('--total_num', type=int, help="Total clients num")
@@ -54,6 +54,7 @@ def args_parser():
 
     # === read args from command ===
     args, _ = parser.parse_known_args()
+    device = args.device if args.device else None
 
     # === read specific args from each method
     alg_module = importlib.import_module(f'alg.{args.alg}')

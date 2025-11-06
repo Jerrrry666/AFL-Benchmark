@@ -57,7 +57,7 @@ class AsyncBaseServer(BaseServer):
         for c in filter(lambda x: x.status != Status.ACTIVE, self.sampled_clients):
             c.model.train()
             c.reset_optimizer(True)
-            with OnDevice(c.model, c.device):
+            with OnDevice(c.model, c.target_device):
                 c.run()
             heapq.heappush(self.client_queue, (self.wall_clock_time + c.training_time, c))
             c.status = Status.ACTIVE

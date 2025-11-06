@@ -43,7 +43,7 @@ class OnDevice:
 
     def __init__(self,
                  model: list[torch.nn.Module] | torch.nn.Module,
-                 device: str | int,
+                 device: torch.device,
                  model_in_cpu_flag: bool = False):
         self.model = model
         self.target_device = device
@@ -68,24 +68,28 @@ class OnDevice:
 
 
 class OnDeviceRun:
-    def __init__(self, client, device: str | int):
+    def __init__(self, client, device: int | str | torch.device, mode: str = 'train'):
         self.client = client
-        self.device = device
+        self.original_device = client.device
+        self.target_device = device
+        self.mode = mode
 
     def __enter__(self):
         """When entering the with block, move the model to the target device."""
-        self.client.device = self.device
-        self.client.model.to(self.device)
-        self._optim_to(getattr(self.client, 'optim', None), self.device)
-        self._scaler_to(getattr(self.client, 'scaler', None), self.device)
+        if self.original_device != self.target_device:
+            self.client.target_device = self.target_device
+            self.client.model.to(self.target_device)
+            if self.mode == 'train':
+                self._optim_to(getattr(self.client, 'optim', None), self.target_device)
+                # self._scaler_to(getattr(self.client, 'scaler', None), self.device)
         return self.client
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """When exiting the with block, move the model back to CPU, even if an exception occurs."""
-        self.client.device = None
-        self.client.model.to('cpu')
-        self._optim_to(getattr(self.client, 'optim', None), 'cpu')
-        self._scaler_to(getattr(self.client, 'scaler', None), 'cpu')
+        self.client.model.to(self.original_device)
+        if self.mode == 'train':
+            self._optim_to(getattr(self.client, 'optim', None), self.original_device)
+            # self._scaler_to(getattr(self.client, 'scaler', None), self.original_device)
 
     @staticmethod
     def _optim_to(optim: torch.optim.Optimizer | None, device: str | torch.device):
