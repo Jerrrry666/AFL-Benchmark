@@ -1,3 +1,11 @@
+"""
+Base classes for federated learning algorithms.
+
+This module provides the foundational classes for implementing federated learning
+algorithms, including BaseClient and BaseServer classes that handle client-side
+and server-side operations respectively.
+"""
+
 import random
 from concurrent.futures import ThreadPoolExecutor
 from threading import Semaphore
@@ -180,20 +188,19 @@ class BaseClient:
 
 class BaseServer(BaseClient):
     def __init__(self, args, clients):
+        super().__init__(0, args)
         self.dataset_train = None
         self.dataset_test = None
-        self.model = None
         self.loss_func = None
         self.optim = None
 
+        self.device = None
         self.devices = assert_device(args.device, 's')
 
         # per-device concurrency control (1 means serialize on each device)
         self.max_per_device = getattr(args, 'max_per_device', 1)
         if isinstance(self.max_per_device, int) and self.max_per_device < 1:
             self.max_per_device = 1
-
-        super().__init__(0, args)
 
         self.client_num = args.total_num
         self.sample_rate = args.sr

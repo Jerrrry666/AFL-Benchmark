@@ -52,7 +52,8 @@ class Server(AsyncBaseServer):
 
     def aggregate(self):
         client_id = self.cur_client.id
-        client_delay = self.staleness[client_id]
+        # Use get_staleness method instead of accessing staleness array
+        client_delay = self.get_staleness(self.cur_client)
         
         self.buffer.append(self.cur_client.dW)
         self.buffer_delays.append(client_delay)
@@ -64,10 +65,10 @@ class Server(AsyncBaseServer):
         # set the current client to idle
         self.cur_client.status = Status.IDLE
 
-        # update the staleness
+        # No need to update staleness here - it's calculated on-demand using get_staleness()
+        # The staleness is now determined by the difference between current server round
+        # and the round when client started training (stored in client.task_round)
         if len(self.buffer) >= self.M:
-            for c in filter(lambda x: x.status == Status.ACTIVE, self.clients):
-                self.staleness[c.id] += 1
             self.buffer.clear()
             self.buffer_delays.clear()
 

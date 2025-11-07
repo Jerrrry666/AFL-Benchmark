@@ -21,7 +21,7 @@ def args_parser():
     prelim_args, _ = prelim_parser.parse_known_args()
 
     # Load YAML defaults using the config path from CLI
-    config_path = prelim_args.cfg
+    config_path = Path(prelim_args.cfg)
     if not config_path.exists():
         raise FileExistsError(f"Warning: config file does not exist: {config_path}")
     config_path = Path(prelim_args.cfg)

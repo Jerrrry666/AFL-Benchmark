@@ -33,7 +33,8 @@ class Server(AsyncBaseServer):
             a = self.args.a
             b = self.args.b
             strategy = self.args.strategy
-            tau = self.staleness[self.cur_client.id]
+            # Use get_staleness method instead of accessing staleness array
+            tau = self.get_staleness(self.cur_client)
             if strategy == 'poly':
                 return 1 / ((tau + 1) ** abs(a))
             elif strategy == 'hinge':

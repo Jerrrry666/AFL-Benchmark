@@ -74,13 +74,16 @@ class Server(AsyncBaseServer):
         idle_clients = [c for c in self.clients if c.status != Status.ACTIVE]
 
         for c in idle_clients:
+            # Use get_staleness method to calculate current staleness
+            current_staleness = self.get_staleness(c)
             avg_staleness = sum(self.staleness_history[c.id]) / len(self.staleness_history[c.id]) \
-                if len(self.staleness_history[c.id] )> 0 else 0
-            c.u = c.data_quality / pow(1 + avg_staleness, self.beta)
+                if len(self.staleness_history[c.id]) > 0 else 0
+            # Combine current staleness with historical average for sampling decision
+            combined_staleness = (current_staleness + avg_staleness) / 2
+            c.u = c.data_quality / pow(1 + combined_staleness, self.beta)
         self.sampled_clients = sorted(idle_clients, key=lambda c: c.u, reverse=True)[:self.MAX_CONCURRENCY - active_num]
 
-        for c in self.sampled_clients:
-            self.staleness[c.id] = 0
+        # No need to reset staleness here - it will be calculated on-demand
 
     
     def aggregate(self):
@@ -102,14 +105,12 @@ class Server(AsyncBaseServer):
         # set the current client to idle
         self.cur_client.status = Status.IDLE
 
-        # add staleness to historical information
-        self.staleness_history[self.cur_client.id].append(self.staleness[self.cur_client.id])
+        # add staleness to historical information - use get_staleness instead of staleness array
+        current_staleness = self.get_staleness(self.cur_client)
+        self.staleness_history[self.cur_client.id].append(current_staleness)
 
         # profile latency
         self.profiled_latency[self.cur_client.id] = self.cur_client.training_time
 
-        # update the staleness
         if self.AGGR:
-            for c in filter(lambda x: x.status == Status.ACTIVE, self.clients):
-                self.staleness[c.id] += 1
             self.buffer.clear()

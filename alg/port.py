@@ -94,14 +94,14 @@ class Server(AsyncBaseServer):
         # set the current client to idle
         self.cur_client.status = Status.IDLE
 
-        # update the staleness
+        # No need to update staleness here - it's calculated on-demand using get_staleness()
         if len(self.buffer) >= self.min_clients:
-            for c in filter(lambda x: x.status == Status.ACTIVE, self.clients):
-                self.staleness[c.id] += 1
             self.buffer = []
 
     def compute_staleness_discount(self, c_id):
-        staleness = self.staleness[c_id]
+        # Use get_staleness method instead of accessing staleness array
+        client = self.clients[c_id]
+        staleness = self.get_staleness(client)
         return self.alpha * self.omega / (staleness + self.omega)
 
     def compute_interference_discount(self, c_update):
@@ -132,4 +132,5 @@ class Server(AsyncBaseServer):
 
     def notify(self):
         for client in filter(lambda x: x.status == Status.ACTIVE, self.clients):
-            if self.staleness[client.id] > self.omega: client.urgent = True
+            # Use get_staleness method instead of accessing staleness array
+            if self.get_staleness(client) > self.omega: client.urgent = True

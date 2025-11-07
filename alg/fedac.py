@@ -95,10 +95,8 @@ class Server(AsyncBaseServer):
         # set the current client to idle
         self.cur_client.status = Status.IDLE
 
-        # update the staleness
+        # No need to update staleness here - it's calculated on-demand using get_staleness()
         if len(self.dW_buffer) >= self.buffer_size:
-            for c in filter(lambda x: x.status == Status.ACTIVE, self.clients):
-                self.staleness[c.id] += 1
             self.dW_buffer.clear()
             self.dC_buffer.clear()
             self.prev_model_buffer.clear()
