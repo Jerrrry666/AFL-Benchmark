@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from alg.asyncbase import AsyncBaseServer
+from alg.asyncbase import AsyncBaseServer, Status
 from utils.options import args_parser
 
 
@@ -67,13 +67,34 @@ class FedSim:
         # check if it is an async methods
         if isinstance(self.server, AsyncBaseServer):
             TEST_GAP *= int(self.args.total_num * self.args.sr)
-            self.server.total_round *= int(self.args.total_num * self.args.sr)
         try:
             for rnd in tqdm(range(self.begin_round, self.server.total_round), desc="Communication Round",
                             initial=self.begin_round, total=self.server.total_round):
                 # ===================== train =====================
                 self.server.round = rnd
-                self.server.run()
+                
+                # 异步多卡并行的新逻辑
+                if isinstance(self.server, AsyncBaseServer):
+                    # 持续运行直到有足够客户端完成训练可以聚合
+                    while True:
+                        self.server.run()
+                        
+                        # 检查是否有足够的客户端完成训练
+                        if len(self.server.pending_aggregation_queue) >= self.server.aggregation_batch_size:
+                            break
+                            
+                        # 检查是否所有客户端都处于活跃状态（避免死锁）
+                        active_clients = len([c for c in self.server.clients if c.status == Status.ACTIVE])
+                        if active_clients >= self.server.MAX_CONCURRENCY:
+                            # 如果所有客户端都在训练，等待一小段时间再继续
+                            import time
+                            time.sleep(0.1)
+                            continue
+                        else:
+                            break  # 可以继续采样新的客户端
+                else:
+                    # 同步服务器的原有逻辑
+                    self.server.run()
 
                 # ===================== test =====================
                 if (self.server.total_round - rnd <= 10) or (rnd % TEST_GAP == (TEST_GAP - 1)):

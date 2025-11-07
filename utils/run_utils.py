@@ -77,7 +77,7 @@ class OnDeviceRun:
     def __enter__(self):
         """When entering the with block, move the model to the target device."""
         if self.original_device != self.target_device:
-            self.client.target_device = self.target_device
+            self.client.device = self.target_device
             self.client.model.to(self.target_device)
             if self.mode == 'train':
                 self._optim_to(getattr(self.client, 'optim', None), self.target_device)
@@ -86,10 +86,12 @@ class OnDeviceRun:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """When exiting the with block, move the model back to CPU, even if an exception occurs."""
-        self.client.model.to(self.original_device)
-        if self.mode == 'train':
-            self._optim_to(getattr(self.client, 'optim', None), self.original_device)
-            # self._scaler_to(getattr(self.client, 'scaler', None), self.original_device)
+        if self.original_device != self.target_device:
+            self.client.device = self.original_device
+            self.client.model.to(self.original_device)
+            if self.mode == 'train':
+                self._optim_to(getattr(self.client, 'optim', None), self.original_device)
+                # self._scaler_to(getattr(self.client, 'scaler', None), self.original_device)
 
     @staticmethod
     def _optim_to(optim: torch.optim.Optimizer | None, device: str | torch.device):

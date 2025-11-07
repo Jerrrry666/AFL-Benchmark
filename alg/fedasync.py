@@ -1,4 +1,4 @@
-from alg.asyncbase import AsyncBaseClient, AsyncBaseServer
+from alg.asyncbase import AsyncBaseClient, AsyncBaseServer, compute_staleness_weight
 from utils.run_utils import time_record
 
 
@@ -29,19 +29,37 @@ class Server(AsyncBaseServer):
         self.update_status()
 
     def aggregate(self):
-        def weight_decay():
-            a = self.args.a
-            b = self.args.b
-            strategy = self.args.strategy
-            # Use get_staleness method instead of accessing staleness array
-            tau = self.get_staleness(self.cur_client)
-            if strategy == 'poly':
-                return 1 / ((tau + 1) ** abs(a))
-            elif strategy == 'hinge':
-                return 1 / (a * (tau + b) + 1) if tau > b else 1
+        """批量聚合多个客户端的更新，支持FedAsync的staleness策略"""
+        if not self.clients_to_aggregate:
+            return
+        
+        # 计算加权聚合权重（考虑staleness策略和数据量）
+        total_weight = 0
+        weighted_params = None
+        
+        for client in self.clients_to_aggregate:
+            # 使用FedAsync的staleness权重计算，固定参数值
+            staleness = self.get_staleness(client)
+            staleness_weight = compute_staleness_weight(staleness, strategy='hinge', a=1, b=4)
+            
+            # 考虑数据量权重
+            data_weight = len(client.dataset_train) if client.dataset_train else 1.0
+            
+            # 组合权重
+            combined_weight = staleness_weight * data_weight
+            
+            client_params = client.model2shared_tensor()
+            
+            if weighted_params is None:
+                weighted_params = combined_weight * client_params
             else:
-                return 1
-
-        decay = self.decay * weight_decay()
-        t_aggr = decay * self.cur_client.model2shared_tensor() + (1 - decay) * self.model2shared_tensor()
-        self.shared_tensor2model(t_aggr)
+                weighted_params += combined_weight * client_params
+                
+            total_weight += combined_weight
+        
+        # 执行聚合
+        if weighted_params is not None and total_weight > 0:
+            aggregated_params = weighted_params / total_weight
+            # 与服务器模型混合
+            mixed_params = self.decay * aggregated_params + (1 - self.decay) * self.model2shared_tensor()
+            self.shared_tensor2model(mixed_params)

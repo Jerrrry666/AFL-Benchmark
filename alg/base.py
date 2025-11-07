@@ -321,7 +321,8 @@ def assert_device(deivce_arg, side='c'):
     if side == 's':
         if isinstance(deivce_arg, list):
             if deivce_arg:
-                assert max(deivce_arg) < torch.cuda.device_count(), 'some device not available!'
+                print(deivce_arg)
+                assert max(deivce_arg) < torch.cuda.device_count(), f'some device not available! only {torch.cuda.device_count()} cuda devices.'
                 return deivce_arg
             return 'cpu'
         if isinstance(deivce_arg, int):
