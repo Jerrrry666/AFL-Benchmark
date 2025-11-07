@@ -62,6 +62,7 @@ class BaseClient:
                     # drop_last=True
             )
 
+        self.task_round = None  # server round when client is sampled
         self.training_time = None
 
     def run(self):
@@ -112,8 +113,8 @@ class BaseClient:
         self.metric['acc'] = 100.00 * correct / total
 
     def reset_optimizer(self, decay=True):
-        if decay and self.server.round > 0:
-            self.scheduler.last_epoch = self.server.round - 1
+        if decay and self.task_round > 0:
+            self.scheduler.last_epoch = self.task_round - 1
             self.scheduler.step()
 
     # def model2tensor(self, params=None):
@@ -177,19 +178,6 @@ class BaseClient:
         return model_tensor.numel() * model_tensor.element_size()
 
 
-# === BOOKMARK: Multiprocessing path retained for later switch-back ===
-def _mp_run_one(client, device, out_q):
-    try:
-        client.model.train()
-        client.reset_optimizer()
-        with OnDeviceRun(client, device) as c:
-            c.run()
-        shared = client.model2shared_tensor().cpu()  # only the global (shared) params
-        out_q.put((client.id, shared, getattr(client, 'training_time', 0.0), None))
-    except Exception as e:
-        out_q.put((getattr(client, 'id', -1), None, 0.0, str(e)))
-
-
 class BaseServer(BaseClient):
     def __init__(self, args, clients):
         self.dataset_train = None
@@ -236,6 +224,7 @@ class BaseServer(BaseClient):
         assert (len(self.sampled_clients) > 0)
         for client in self.sampled_clients:
             client.clone_model(self)
+            client.task_round = self.round
 
     def client_update(self):
         """Threaded client execution with per-device concurrency cap.
