@@ -25,6 +25,21 @@ def check(cfg):
     return False
 
 
+def dataset_to_numpy(ds):
+    """
+    Helper to convert torchvision dataset (with transform) to numpy arrays
+    """
+    X_list = []
+    y_list = []
+    for i in tqdm(range(len(ds)), desc="Converting dataset to numpy"):
+        img_t, label = ds[i]  # transform is already applied here
+        X_list.append(img_t.numpy())  # CHW, float32 after ToTensor/Normalize
+        y_list.append(label)
+    X = np.stack(X_list, axis=0)
+    y = np.array(y_list, dtype=np.int64)
+    return X, y
+
+
 def separate_data(data, cfg):
     num_clients = cfg['client_num']
     partition = cfg['partition']

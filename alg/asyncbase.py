@@ -38,6 +38,7 @@ def compute_staleness_weight(staleness, strategy='hinge', a=1, b=4):
 class Status(Enum):
     IDLE = 1
     ACTIVE = 2
+    ERROR = 3
 
 
 class AsyncBaseClient(BaseClient):
@@ -69,6 +70,9 @@ class AsyncBaseServer(BaseServer):
         self.devices = assert_device(args.device, 's') if hasattr(args, 'device') else ['cpu']
         if isinstance(self.devices, str):
             self.devices = [self.devices]
+        self.test_devices = assert_device(args.test_device, 's') if hasattr(args, 'test_device') else ['cpu']
+        if isinstance(self.test_devices, str):
+            self.test_devices = [self.test_devices]
         self.max_total_concurrent = len(self.devices) * self.max_concurrent_per_device
         self.pending_aggregation_queue = []  # 等待聚合的客户端队列
         self.clients_to_aggregate = []  # 当前批次要聚合的客户端
@@ -113,7 +117,7 @@ class AsyncBaseServer(BaseServer):
             c.task_round = self.round
 
     def client_update(self):
-        """并发训练客户端，支持多GPU"""
+        """并发训练客户端，支持多GPU，集成训练-测试分离"""
 
         # 构建设备信号量，控制每个GPU的并发数
         device_semaphores = {}
@@ -124,22 +128,25 @@ class AsyncBaseServer(BaseServer):
             """在指定设备上训练客户端"""
             with device_semaphores[device]:
                 try:
+                    # 注意：client.status应该在调用此函数前已经设置为ACTIVE
+                    # 这里只负责训练和缓存，不负责状态管理
+
                     client.reset_optimizer(True)
+
+                    # 缓存个性化参数用于测试（训练开始前的状态）
+                    # 使用model2personalized_tensor保存个性化参数，更高效
+                    client.cached_personalized_params = client.model2personalized_tensor()
+
                     with OnDeviceRun(client, device, 'train') as c:
                         c.run()
-                    
-                    # 确保模型回到CPU，避免设备不一致问题
-                    client.model.to('cpu')
-                    
-                    # 训练完成后立即加入待聚合队列
+
+                    # 训练完成后立即加入待聚合队列（此时client仍然是ACTIVE状态）
                     heapq.heappush(self.pending_aggregation_queue,
                                    (self.wall_clock_time + client.training_time, client))
-                    client.status = Status.ACTIVE
-                    
+
                 except Exception as e:
-                    # 出错时也要确保模型回到CPU
-                    client.model.to('cpu')
-                    client.status = Status.IDLE
+                    client.status = Status.ERROR
+                    # client.model.to('cpu')
                     print(f"Client {client.id} training failed on device {device}: {e}")
                     raise e
 
@@ -184,6 +191,7 @@ class AsyncBaseServer(BaseServer):
         for client in self.clients_to_aggregate:
             client.model.to('cpu')
 
+        # todo 半异步下，如何计算权重？
         # 计算加权聚合权重（考虑staleness和数据量）
         total_weight = 0
         weighted_params = None
@@ -217,38 +225,85 @@ class AsyncBaseServer(BaseServer):
             self.shared_tensor2model(mixed_params)
 
     def update_status(self):
-        """批量更新客户端状态"""
+        """批量更新客户端状态，在聚合完成后才设为IDLE"""
+        # 只有在聚合完成后，才将这些客户端设为IDLE
         for client in self.clients_to_aggregate:
             client.status = Status.IDLE
+            # 清理个性化参数缓存以节省内存
+            if hasattr(client, 'cached_personalized_params'):
+                client.cached_personalized_params = None
 
         # 清空当前批次的聚合列表
         self.clients_to_aggregate = []
 
     def test_all(self):
-        """Evaluate all clients in parallel on available devices to reduce CPU load."""
+        """使用个性化参数的并行测试，避免影响正在训练的客户端"""
         self.metric['acc'] = []
 
-        # eval one client
         def _eval_one(client, device):
-            # NOTE: have to store current local model
+            """测试单个客户端，根据状态选择测试策略"""
+            if client.status == Status.ACTIVE and hasattr(client,
+                                                          'cached_personalized_params') and client.cached_personalized_params is not None:
+                # 客户端正在训练中，使用缓存的个性化参数恢复测试模型状态
+                with torch.no_grad():
+                    # 创建测试模型：服务器模型 + 个性化参数
+                    import copy
+                    test_model = copy.deepcopy(client.model)  # 当前服务器模型状态
+                    test_model.to('cpu')  # 确保在CPU上
+
+                    # 保存当前个性化参数
+                    current_personalized = client.model2personalized_tensor()
+
+                    # 应用缓存的个性化参数到测试模型
+                    if client.cached_personalized_params is not None:
+                        client.personalized_tensor2model(client.cached_personalized_params)
+
+                    # 使用恢复的测试模型进行测试
+                    test_model.eval()
+                    correct = 0
+                    total = 0
+
+                    for data in client.loader_test:
+                        X, y = client.preprocess(data)
+                        preds = test_model(X)
+                        _, preds_y = torch.max(preds.data, 1)
+                        total += y.size(0)
+                        correct += (preds_y == y).sum().item()
+
+                    client.metric['acc'] = 100.00 * correct / total
+
+                    # 恢复当前个性化参数
+                    if current_personalized is not None:
+                        client.personalized_tensor2model(current_personalized)
+
+                    # 清理临时测试模型
+                    del test_model
+
+                    return client.metric['acc']
+            else:
+                # 客户端不在训练中，使用正常测试流程
+                return _test_client_normal(self, client, device)
+
+        def _test_client_normal(self, client, device):
+            """正常的客户端测试流程"""
             context = client.model2shared_tensor()
             client.clone_model(self)
-            with torch.no_grad():
-                with OnDeviceRun(client, device, 'eval') as c:
-                    c.local_test()
-            # restore client's original model
+            with OnDeviceRun(client, device, 'eval') as c:
+                c.local_test()
             client.shared_tensor2model(context)
-            return c.metric['acc']
+            return client.metric['acc']
 
-        max_workers = max(1, len(self.devices))
+        # 并行测试所有客户端
+        max_workers = max(1, len(self.test_devices))
         acc_results = [None] * len(self.clients)
 
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
             futures = []
             for client in self.clients:
                 idx = client.id
-                device = self.devices[idx % len(self.devices)] if self.devices else 'cpu'
+                device = self.test_devices[idx % len(self.test_devices)] if self.test_devices else 'cpu'
                 futures.append((idx, ex.submit(_eval_one, client, device)))
+
             for idx, fut in futures:
                 acc_results[idx] = fut.result()
 

@@ -102,6 +102,7 @@ class FedSim:
                     _ = self.save_checkpoint(rnd)
 
                     # test
+                    # todo: independent thread for test? then need load from checkpoint file
                     ret_dict = self.server.test_all()
                     acc = ret_dict["acc"]
                     acc_list.append(acc)
@@ -194,7 +195,7 @@ class FedSim:
                 if client.id not in client_states:
                     self.logger.warning(f"Client {client.id} missing in checkpoint.")
                     continue
-                client.tensor2personalized(client_states[client.id]["client_personalized_tensor"])
+                client.personalized_tensor2model(client_states[client.id]["client_personalized_tensor"])
 
             self.logger.info(f"Resumed from checkpoint from {ckpt_path}")
             return begin_round_idx + 1

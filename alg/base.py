@@ -177,7 +177,7 @@ class BaseClient:
     def shared_tensor2model(self, tensor):
         self._tensor2model(tensor, self.model, self.share_flag)
 
-    def tensor2personalized(self, tensor):
+    def personalized_tensor2model(self, tensor):
         if not self.p_flag: return
         self._tensor2model(tensor, self.model, self.keep_local)
 

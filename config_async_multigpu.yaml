@@ -1,8 +1,9 @@
 # async multi-gpu parallel training config
 alg: fedasync
 suffix: async_multigpu_test
-resume_round: 0
-device: [ 0, 1, 2, 3 ]
+resume_round: 7
+device: [ 0,1 ]
+test_device: [ 2,3 ]
 dataset: cifar10
 model: resnet18
 model_in_cpu: false
@@ -10,7 +11,7 @@ model_in_cpu: false
 # federated config
 total_num: 20
 sr: 0.2
-rnd: 500  # 减少轮次用于测试
+rnd: 300  # 减少轮次用于测试
 test_gap: 2
 
 # local training config

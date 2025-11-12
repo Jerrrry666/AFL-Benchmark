@@ -1,9 +1,10 @@
-import numpy as np
 import random
+from pathlib import Path
+
+import numpy as np
 import torchvision
 import torchvision.transforms as transforms
 import yaml
-from pathlib import Path
 
 from utils.dataset_utils import check, save_file, separate_data, split_data
 
@@ -18,9 +19,9 @@ def generate_dataset(cfg):
     if check(cfg): return
 
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize([0.5], [0.5])])
-    trainset = torchvision.datasets.CIFAR100(root="~/Dataset/",
+    trainset = torchvision.datasets.CIFAR100(root="~/Dataset/CIFAR100",
                                              train=True, download=True, transform=transform)
-    testset = torchvision.datasets.CIFAR100(root="~/Dataset/",
+    testset = torchvision.datasets.CIFAR100(root="~/Dataset/CIFAR100",
                                             train=False, download=True, transform=transform)
 
     X = np.concatenate([trainset.data, testset.data])
