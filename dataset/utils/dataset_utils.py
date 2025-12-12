@@ -7,6 +7,9 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 
+# Import dual distribution utils for multi-domain datasets
+
+
 def check(cfg):
     dir_path = Path(cfg['dir_path'] + '-' + f'{cfg["client_num"]}')
     config_path = dir_path / "config.yaml"
@@ -166,6 +169,13 @@ def separate_data(data, cfg):
                         dataidx_map.setdefault(client, np.array([], dtype=int))
                         dataidx_map[client] = np.concatenate([dataidx_map[client], idx_class[idx:idx + n]])
                         idx += n
+
+    elif partition == 'dual':
+        # For dual distribution (DomainNet style), we need features data
+        # This requires dataset-specific handling in individual generate_*.py files
+        # We'll raise an informative error here
+        raise NotImplementedError("Dual distribution partition requires dataset-specific implementation. "
+                                  "Please use the dual distribution utils directly in dataset generators.")
     else:
         raise NotImplementedError
 
@@ -209,17 +219,24 @@ def split_data(X, y, cfg):
 
 
 def save_file(train_data, test_data, config):
-    dir_path = Path(config['dir_path'] + '-' + f'{config["client_num"]}')
+    if config['partition'] == 'dual':
+        dir_path = Path(
+            f'{config["dir_path"]}-{config["client_num"]}-L{config["label_partition"]}-F{config["feature_partition"]}')
+    else:
+        dir_path = Path(config['dir_path'] + '-' + f'{config["client_num"]}')
     config_path = dir_path / "config.yaml"
     train_path = dir_path / "train"
     test_path = dir_path / "test"
 
+    train_path.mkdir(parents=True, exist_ok=True)
+    test_path.mkdir(parents=True, exist_ok=True)
+
     n = len(train_data)
     for idx in tqdm(range(n), total=n, desc="Saving client to disk"):
-        with (train_path / f"{idx}.npz").open("wb") as f:
-            np.savez_compressed(f, data=train_data[idx])
-        with (test_path / f"{idx}.npz").open("wb") as f:
-            np.savez_compressed(f, data=test_data[idx])
+        # np.savez(train_path / f"{idx}.npz", data=train_data[idx])
+        # np.savez(test_path / f"{idx}.npz", data=test_data[idx])
+        np.savez_compressed(train_path / f"{idx}.npz", data=train_data[idx])
+        np.savez_compressed(test_path / f"{idx}.npz", data=test_data[idx])
     with config_path.open('w') as f:
         yaml.dump(config, f)
 
