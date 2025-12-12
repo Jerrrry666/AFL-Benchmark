@@ -1,17 +1,17 @@
 # basic config
 alg: fedavg
-suffix: parl_test
+suffix: dual_test/domainnet-32-Luni-Funi
 resume_round: 0
-device: [1]
-test_device: [0]
-dataset: cifar10
+device: [ 0,1,2,3 ]
+test_device: [ 0 ] # only used in async FL test
+dataset: domainnet-32-Luni-Funi
 model: resnet18
 model_in_cpu: false
 
 # federated config
-total_num: 20
-sr: 0.2
-rnd: 100
+total_num: 32
+sr: 0.125
+rnd: 200
 test_gap: 4
 
 # local training config
@@ -20,10 +20,3 @@ epoch: 1
 lr: 0.01
 gamma: 0.99
 
-decay: 0.3
-delay: 5
-delay_rate: 0.3
-
-# async multi-gpu parallel config
-max_concurrent_per_device: 2  # 每个GPU最大并发训练数
-aggregation_batch_size: 4     # 批量聚合的客户端数量

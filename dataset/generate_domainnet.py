@@ -24,7 +24,7 @@ DOMAIN_NAMES = ['clipart', 'infograph', 'painting', 'quickdraw', 'real', 'sketch
 NUM_CLASSES_PER_DOMAIN = 345
 
 
-class DomainNetDataset:
+class DomainNetLoader:
     """DomainNet数据集加载器"""
 
     def __init__(self, root_dir=ROOT_DIR):
@@ -167,7 +167,7 @@ def generate_dataset(cfg):
         return
 
     # 初始化DomainNet数据集加载器
-    dataset = DomainNetDataset()
+    dataset = DomainNetLoader()
 
     # 加载原始数据
     X, y, domains = dataset.load_dataset()

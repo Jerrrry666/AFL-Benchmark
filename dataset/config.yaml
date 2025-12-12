@@ -20,7 +20,7 @@ iid_proportion: 0.2  # proportion of IID data in each group, used in 'group' par
 
 # ===== Dual Distribution (DomainNet) =====
 # Label distribution control
-label_partition: uni  # label distribution method: 'uni' (uniform) or 'dir' (dirichlet)
+label_partition: dir  # label distribution method: 'uni' (uniform) or 'dir' (dirichlet)
 label_alpha: 0.3  # alpha parameter for label distribution (0-1, lower = more heterogeneous)
 
 # Feature distribution control  

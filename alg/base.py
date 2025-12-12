@@ -17,7 +17,7 @@ from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from torch.utils.data import DataLoader
 
 from model.config import load_model
-from utils.data_utils import read_client_data
+from utils.data_utils import get_dataset
 from utils.run_utils import OnDeviceRun
 from utils.sys_utils import comm_config, device_config
 
@@ -26,10 +26,10 @@ class BaseClient:
     def __init__(self, id, args):
         self.id = id
         self.args = args
-        self.dataset_name = args.dataset
-        self.dataset_path = f'{args.dataset}-{args.total_num}'
-        self.dataset_train = read_client_data(self.dataset_path, self.id, is_train=True)
-        self.dataset_test = read_client_data(self.dataset_path, self.id, is_train=False)
+        self.dataset_name = args.dataset.split('-')[0]
+        self.dataset_path = args.dataset
+        self.dataset_train = get_dataset(self.dataset_name)(args, self.id, is_train=True)
+        self.dataset_test = get_dataset(self.dataset_name)(args, self.id, is_train=False)
         self.device = assert_device(args.device)
         self.server = None
 
@@ -59,7 +59,8 @@ class BaseClient:
                     batch_size=self.batch_size,
                     shuffle=True,
                     collate_fn=None,
-                    # drop_last=True
+                    num_workers=8,
+                    # drop_last=True,
             )
         if self.dataset_test is not None:
             self.loader_test = DataLoader(
@@ -67,7 +68,8 @@ class BaseClient:
                     batch_size=self.batch_size,
                     shuffle=False,
                     collate_fn=None,
-                    # drop_last=True
+                    num_workers=8,
+                    # drop_last=True,
             )
 
         self.task_round = None  # server round when client is sampled

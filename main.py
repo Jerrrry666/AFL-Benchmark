@@ -10,8 +10,7 @@ from tqdm import tqdm
 from alg.asyncbase import AsyncBaseServer, Status
 from utils.options import args_parser
 
-
-# sys.path.append(str(Path(__file__).resolve().parent.parent))
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 
 class FedSim:

@@ -1,15 +1,17 @@
 import importlib
 
 dataset2class = {
-    'mnist': 10,
-    'emnist': 47,
-    'cifar10': 10,
-    'cifar100': 100,
-    'svhn': 10,
-    'agnews': 4,
+    'mnist'      : 10,
+    'emnist'     : 47,
+    'cifar10'    : 10,
+    'cifar100'   : 100,
+    'svhn'       : 10,
+    'agnews'     : 4,
     'shakespeare': 4,
-    'harbox': 5
+    'harbox'     : 5,
+    'domainnet'  : 345,
 }
+
 
 # NOTE: if input is 'cifar10a1', then process into 'cifar10'
 def name_filter(dataset_arg):
@@ -23,6 +25,8 @@ def name_filter(dataset_arg):
         return 'agnews'
     elif 'mnist' in dataset_arg:
         return 'mnist'
+    elif 'domainnet' in dataset_arg:
+        return 'domainnet'
     return 'Unknown dataset'
 
 
