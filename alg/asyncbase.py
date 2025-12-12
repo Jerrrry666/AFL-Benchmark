@@ -64,9 +64,8 @@ class AsyncBaseServer(BaseServer):
         # self.staleness = [0 for _ in self.clients]
         self.cur_client = None
 
-        # 新增多卡并行相关属性
         self.max_concurrent_per_device = getattr(args, 'max_concurrent_per_device', 2)
-        self.aggregation_batch_size = getattr(args, 'aggregation_batch_size', 4)
+        self.aggregation_batch_size = getattr(args, 'aggregation_batch_size', 1)
         self.devices = assert_device(args.device, 's') if hasattr(args, 'device') else ['cpu']
         if isinstance(self.devices, str):
             self.devices = [self.devices]
@@ -75,7 +74,7 @@ class AsyncBaseServer(BaseServer):
             self.test_devices = [self.test_devices]
         self.max_total_concurrent = len(self.devices) * self.max_concurrent_per_device
         self.pending_aggregation_queue = []  # 等待聚合的客户端队列
-        self.clients_to_aggregate = []  # 当前批次要聚合的客户端
+        self.clients_to_aggregate = []
 
     def run(self):
         raise NotImplementedError

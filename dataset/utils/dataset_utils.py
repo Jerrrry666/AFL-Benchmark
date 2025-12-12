@@ -7,6 +7,9 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 
+# Import dual distribution utils for multi-domain datasets
+
+
 def check(cfg):
     dir_path = Path(cfg['dir_path'] + '-' + f'{cfg["client_num"]}')
     config_path = dir_path / "config.yaml"
@@ -166,6 +169,13 @@ def separate_data(data, cfg):
                         dataidx_map.setdefault(client, np.array([], dtype=int))
                         dataidx_map[client] = np.concatenate([dataidx_map[client], idx_class[idx:idx + n]])
                         idx += n
+
+    elif partition == 'dual':
+        # For dual distribution (DomainNet style), we need features data
+        # This requires dataset-specific handling in individual generate_*.py files
+        # We'll raise an informative error here
+        raise NotImplementedError("Dual distribution partition requires dataset-specific implementation. "
+                                  "Please use the dual distribution utils directly in dataset generators.")
     else:
         raise NotImplementedError
 

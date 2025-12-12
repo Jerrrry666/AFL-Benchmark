@@ -1,9 +1,16 @@
-# AFL-Lib
-
-## New feature
+# New features
 - Support multi-card parallelly training instead of sequentially.
-- Now we can resume training process from checkpoint! Add save and load checkpoint module. 
+- Now we can resume training process from checkpoint! Add save and load checkpoint module.
+- **DomainNet Dataset Support**: Added comprehensive DomainNet dataset generator with multi-domain image classification capabilities.
+- **Dual-Layer Distribution Control**: Implemented flexible data partitioning supporting both label-level and feature-level distributions independently.
+  - **Advanced Pathological Distribution**: New 'pat' distribution mode where each client only has p specific features, with intelligent sample allocation algorithms.
+  - **Feature-Level Heterogeneity**: Support for controlling feature distributions (uniform, Dirichlet, pathological) separately from label distributions.
+  - **Comprehensive Statistics**: Enhanced client distribution analysis with dual-perspective output (feature view and client view).
+  - **Smart Configuration System**: Extended configuration with detailed parameter annotations and flexible distribution control options.
+- **Multi-Modal Data Support**: Enhanced dataset utilities supporting datasets with multiple types of features (domains, styles, etc.).
 
+
+# AFL-Lib
 
 🔥 **Asynchronous Federated Learning (AFL)** Library and Benchmark.
 

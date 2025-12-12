@@ -1,12 +1,12 @@
 # ===== basic config ===== 
-partition: dir  # partition method, including ['iid', 'dir', 'pat', 'group']
+partition: dual  # partition method, including ['iid', 'dir', 'pat', 'group', 'dual']
 train_ratio: 0.75  # train data ratio
 batch_size: 10  # batch size
 
 client_num: 20  # number of clients
-dir_path: cifar10  # dataset path
+dir_path: domainnet  # dataset path
 
-# ===== Dirichlet =====
+# ===== Traditional Dirichlet =====
 alpha: 10000  # Dirichlet distribution parameter, used in 'dir' partition method
 
 # ===== Pathological =====
@@ -15,3 +15,20 @@ class_per_client: 2  # number of classes per client, used in 'pat' partition met
 # ===== Group =====
 group_num: 10  # number of groups, used in 'group' partition method
 iid_proportion: 0.2  # proportion of IID data in each group, used in 'group' partition method
+
+# ===== Dual Distribution (DomainNet) =====
+# Label distribution control
+label_partition: dir  # label distribution method: 'uni' (uniform) or 'dir' (dirichlet)
+label_alpha: 0.5  # alpha parameter for label distribution (0-1, lower = more heterogeneous)
+
+# Feature distribution control  
+feature_partition: pat  # feature distribution method: 'uni' (uniform), 'dir' (dirichlet), or 'pat' (pathological)
+feature_p: 3  # number of features per client in pathological distribution (each client only has p features)
+feature_pat_mode: uniform  # pathological distribution allocation mode: 'uniform' (equal allocation) or 'proportional' (sample-proportional allocation)
+feature_alpha: 0.5  # alpha parameter for feature distribution (0-1, lower = more heterogeneous)
+
+# DomainNet specific settings
+num_domains: 6  # number of domains (styles) in DomainNet: clipart, infograph, painting, quickdraw, real, sketch
+domain_names: [ clipart, infograph, painting, quickdraw, real, sketch ]  # domain names
+class_num: 345  # number of classes in each domain
+
