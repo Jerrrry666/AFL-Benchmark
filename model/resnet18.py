@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torchvision
 
 
 class BasicBlock(nn.Module):
@@ -85,4 +86,5 @@ def resnet18_cifar10(args):
 
 
 def resnet18_domainnet(args):
-    return ResNet(class_num=args.class_num, block=BasicBlock, num_blocks=[2, 2, 2, 2])
+    # return ResNet(class_num=args.class_num, block=BasicBlock, num_blocks=[2, 2, 2, 2])
+    return torchvision.models.resnet18(weights=None, num_classes=args.class_num)

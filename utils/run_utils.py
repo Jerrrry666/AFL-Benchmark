@@ -89,8 +89,8 @@ class OnDeviceRun:
         if self.original_device != self.target_device:
             self.client.device = self.original_device
             self.client.model.to(self.original_device)
-            if self.mode == 'train':
-                self._optim_to(getattr(self.client, 'optim', None), self.original_device)
+            # if self.mode == 'train':
+            #     self._optim_to(getattr(self.client, 'optim', None), self.original_device)
                 # self._scaler_to(getattr(self.client, 'scaler', None), self.original_device)
 
     @staticmethod

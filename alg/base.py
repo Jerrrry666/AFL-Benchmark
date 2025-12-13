@@ -324,7 +324,8 @@ def assert_device(deivce_arg, side='c'):
         if isinstance(deivce_arg, list):
             if deivce_arg:
                 print(deivce_arg)
-                assert max(deivce_arg) < torch.cuda.device_count(), f'some device not available! only {torch.cuda.device_count()} cuda devices.'
+                assert max(
+                    deivce_arg) < torch.cuda.device_count(), f'some device not available! only {torch.cuda.device_count()} cuda devices.'
                 return deivce_arg
             return 'cpu'
         if isinstance(deivce_arg, int):
@@ -334,4 +335,5 @@ def assert_device(deivce_arg, side='c'):
             Warning('All clients work on CPU!')
             return deivce_arg
     elif side == 'c':  # client side
-        return deivce_arg[0] if isinstance(deivce_arg, list) and len(deivce_arg) == 1 else 'cpu'
+        # return deivce_arg[0] if isinstance(deivce_arg, list) and len(deivce_arg) == 1 else 'cpu'
+        return 'cpu'

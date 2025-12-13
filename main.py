@@ -1,3 +1,4 @@
+import csv
 import importlib
 import logging
 import sys
@@ -34,7 +35,7 @@ class FedSim:
             existing_configs = list(self.suffix.glob("*.yaml"))
             if existing_configs:
                 from utils.options import compare_configs
-                can_resume = compare_configs('config.yaml', existing_configs[0])
+                can_resume = compare_configs(args.cfg, existing_configs[0])
                 log_cache = f"Resuming training under {self.suffix}..." if can_resume else f"\nConfig mismatch, creating new directory."
             else:
                 log_cache = f"No config found in {self.suffix}, starting new training run."
@@ -54,13 +55,13 @@ class FedSim:
         if can_resume:
             try:
                 self.begin_round = self.load_checkpoint(begin_round_idx=self.resume_round)
-                self.logger.info(f"Resumed from checkpoint under {self.suffix}.")
             except Exception as e:
-                self.logger.warning(f"Failed to resume training from {self.suffix}: {e}. Starting new training run.")
+                self.logger.warning(f"Failed to resume training from {self.suffix}: {e}. Starting a new training run.")
 
     def simulate(self):
         acc_list = []
         time_list = []
+        rnd_list = []
         TEST_GAP = self.args.test_gap
 
         # check if it is an async methods
@@ -71,17 +72,17 @@ class FedSim:
                             initial=self.begin_round, total=self.server.total_round):
                 # ===================== train =====================
                 self.server.round = rnd
-                
+
                 # 异步多卡并行的新逻辑
                 if isinstance(self.server, AsyncBaseServer):
                     # 持续运行直到有足够客户端完成训练可以聚合
                     while True:
                         self.server.run()
-                        
+
                         # 检查是否有足够的客户端完成训练
                         if len(self.server.pending_aggregation_queue) >= self.server.aggregation_batch_size:
                             break
-                            
+
                         # 检查是否所有客户端都处于活跃状态（避免死锁）
                         active_clients = len([c for c in self.server.clients if c.status == Status.ACTIVE])
                         if active_clients >= self.server.MAX_CONCURRENCY:
@@ -107,6 +108,15 @@ class FedSim:
                     acc_list.append(acc)
                     time = self.server.wall_clock_time
                     time_list.append(time)
+                    rnd_list.append(rnd)
+
+                    # Write to CSV after each test
+                    csv_path = self.suffix / "acc&time_history.csv"
+                    with open(csv_path, "a") as f:
+                        writer = csv.writer(f)
+                        if f.tell() == 0:  # Write header if file is empty
+                            writer.writerow(["rnd", "acc", "time"])
+                        writer.writerow([rnd, acc, time])
 
                     self.logger.info(f"[Round {rnd}]\tAcc: {acc:.2f}\t| Time: {time:.2f}s")
 
@@ -121,12 +131,28 @@ class FedSim:
             self.logger.info("==========Summary==========")
             self.logger.info(f"[Total] Acc: {acc_avg:.2f}\t| Max Acc: {acc_max:.2f}")
 
-            acc_list = np.array(acc_list)
-            time_list = np.array(time_list)
-            data = np.column_stack((acc_list, time_list))
-            csv_path = self.suffix / "acc&time_history.csv"
-            np.savetxt(csv_path, data, delimiter=",", header="accuracy,time", comments="", fmt="%.6f")
-            self.logger.info(f"Results saved to {csv_path}")
+            # Check consistency in finally block
+            try:
+                csv_path = self.suffix / "acc&time_history.csv"
+                recorded_rnd, recorded_acc, recorded_time = [], [], []
+                if csv_path.exists():
+                    with open(csv_path, "r") as f:
+                        reader = csv.DictReader(f)
+                        for row in reader:
+                            recorded_rnd.append(int(row["rnd"]))
+                            recorded_acc.append(float(row["acc"]))
+                            recorded_time.append(float(row["time"]))
+
+                # Take union of lists to ensure consistency
+                combined = set(zip(rnd_list, acc_list, time_list)) | set(zip(recorded_rnd, recorded_acc, recorded_time))
+                combined = sorted(combined, key=lambda x: x[0])  # Sort by rnd
+
+                with open(csv_path, "w") as f:
+                    writer = csv.writer(f)
+                    writer.writerow(["rnd", "acc", "time"])
+                    writer.writerows(combined)
+            except Exception as e:
+                self.logger.error(f"Error during finalization: {e}")
 
     def save_checkpoint(self, round_idx: int) -> Path:
         """
@@ -140,9 +166,10 @@ class FedSim:
         try:
             # build checkpoint dictionary
             ckpt_data = {
-                "round"       : round_idx,
-                "server_model": self.server.model.state_dict(),
-                "clients"     : {
+                "round"          : round_idx,
+                "wall_clock_time": self.server.wall_clock_time,
+                "server_model"   : self.server.model.state_dict(),
+                "clients"        : {
                     client.id: {
                         "client_personalized_tensor": client.model2personalized_tensor(),
                     }
@@ -156,7 +183,7 @@ class FedSim:
         return ckpt_path
 
     def load_checkpoint(self, suffix_dir_path: str | Path | None = None,
-                        begin_round_idx: int | str = 'max') -> None:
+                        begin_round_idx: int | str = 'max') -> int | None:
         """
         Load server and client states from checkpoint file.
         If suffix_dir_path is provided, it replaces self.suffix.
@@ -187,6 +214,7 @@ class FedSim:
             # === restore server ===
             self.server.model.load_state_dict(ckpt_data["server_model"])
             self.server.round = ckpt_data.get("round", begin_round_idx + 1)
+            self.server.wall_clock_time = ckpt_data.get("wall_clock_time", 0.0)
 
             # === restore clients' personalized params ===
             client_states = ckpt_data.get("clients", {})

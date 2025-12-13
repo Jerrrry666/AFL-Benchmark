@@ -17,7 +17,7 @@ def _load_yaml_dict(path: Path) -> dict:
 def args_parser():
     # ===== minimal parser to capture --cfg from CLI =====
     prelim_parser = argparse.ArgumentParser(add_help=False)
-    prelim_parser.add_argument('--cfg', type=str, default='config.yaml', help='Model')
+    prelim_parser.add_argument('--cfg', type=str, default='config1.yaml', help='Model')
     prelim_args, _ = prelim_parser.parse_known_args()
 
     # Load YAML defaults using the config path from CLI
