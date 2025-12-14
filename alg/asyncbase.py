@@ -263,7 +263,7 @@ class AsyncBaseServer(BaseServer):
                     total = 0
 
                     for data in client.loader_test:
-                        X, y = client.preprocess(data)
+                        X, y = client.unarchive(data)
                         preds = test_model(X)
                         _, preds_y = torch.max(preds.data, 1)
                         total += y.size(0)

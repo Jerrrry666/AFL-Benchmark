@@ -28,7 +28,7 @@ class Client(BaseClient):
         batch_loss = []
         for epoch in range(self.epoch):
             for idx, data in enumerate(self.loader_train):
-                X, y = self.preprocess(data)
+                X, y = self.unarchive(data)
 
                 pm = torch.cat([param.view(-1) for param in self.model.parameters()], dim=0)
 

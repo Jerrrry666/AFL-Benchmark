@@ -40,7 +40,7 @@ class Client(AsyncBaseClient):
 
     def train_1_epoch(self):
         for data in self.loader_train:
-            X, y = self.preprocess(data)
+            X, y = self.unarchive(data)
             preds = self.model(X)
             loss = self.loss_func(preds, y)
 

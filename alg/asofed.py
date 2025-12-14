@@ -30,7 +30,7 @@ class Client(AsyncBaseClient):
         total_loss = 0.0
         for epoch in range(self.epoch):
             for idx, data in enumerate(self.loader_train):
-                X, y = self.preprocess(data)
+                X, y = self.unarchive(data)
                 preds = self.model(X)
                 loss = self.loss_func(preds, y)
                

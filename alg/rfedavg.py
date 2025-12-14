@@ -27,7 +27,7 @@ class Client(BaseClient):
         total_loss = 0.0
         for epoch in range(self.epoch):
             for idx, data in enumerate(self.loader_train):
-                X, y = self.preprocess(data)
+                X, y = self.unarchive(data)
                 preds, feat = self.model(X, return_feat=True)
                 mmd_loss = sum([mmd(feat, f_t) for f_t in self.features]) / len(self.features)
                 

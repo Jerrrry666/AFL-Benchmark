@@ -22,7 +22,7 @@ class Client(BaseClient):
         total_loss = 0.0
         for epoch in range(self.epoch):
             for idx, data in enumerate(self.loader_train):
-                X, y = self.preprocess(data)
+                X, y = self.unarchive(data)
                 preds = self.model(X)
 
                 pm = torch.cat([param.view(-1) for param in self.model.parameters()], dim=0)

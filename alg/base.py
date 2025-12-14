@@ -84,7 +84,7 @@ class BaseClient:
 
         for epoch in range(self.epoch):
             for data in self.loader_train:
-                X, y = self.preprocess(data)
+                X, y = self.unarchive(data)
                 preds = self.model(X)
                 loss = self.loss_func(preds, y)
 
@@ -101,7 +101,7 @@ class BaseClient:
         shared_tensor = source.model2shared_tensor()
         self.shared_tensor2model(shared_tensor)
 
-    def preprocess(self, data):
+    def unarchive(self, data):
         X, y = data
         if type(X) == type([]):
             X = X[0]
@@ -114,7 +114,7 @@ class BaseClient:
 
         with torch.no_grad():
             for data in self.loader_test:
-                X, y = self.preprocess(data)
+                X, y = self.unarchive(data)
                 preds = self.model(X)
 
                 _, preds_y = torch.max(preds.data, 1)
