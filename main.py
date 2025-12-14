@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from alg.asyncbase import AsyncBaseServer, Status
+from alg.asyncbase import AsyncBaseClient, AsyncBaseServer, Status
 from utils.options import args_parser
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -63,6 +63,7 @@ class FedSim:
         time_list = []
         rnd_list = []
         TEST_GAP = self.args.test_gap
+        CKPT_GAP = self.args.ckpt_gap
 
         # check if it is an async methods
         if isinstance(self.server, AsyncBaseServer):
@@ -96,10 +97,14 @@ class FedSim:
                     # 同步服务器的原有逻辑
                     self.server.run()
 
+                # ===================== save ckpt =====================
+                if (CKPT_GAP > 0) and ((self.server.total_round - rnd <= 10) or (rnd % CKPT_GAP == (CKPT_GAP - 1))):
+                    _ = self.save_checkpoint(rnd)
+
                 # ===================== test =====================
                 if (self.server.total_round - rnd <= 10) or (rnd % TEST_GAP == (TEST_GAP - 1)):
-                    # optional: snapshot global and per-client states at test rounds
-                    _ = self.save_checkpoint(rnd)
+                    if CKPT_GAP == 0 or CKPT_GAP < 0:
+                        _ = self.save_checkpoint(rnd)
 
                     # test
                     # todo: independent thread for test? then need load from checkpoint file
@@ -171,7 +176,9 @@ class FedSim:
                 "server_model"   : self.server.model.state_dict(),
                 "clients"        : {
                     client.id: {
-                        "client_personalized_tensor": client.model2personalized_tensor(),
+                        "client_personalized_tensor":
+                            client.cached_personalized_params if isinstance(client, AsyncBaseClient)
+                            else client.model2personalized_tensor(),
                     }
                     for client in self.clients
                 },

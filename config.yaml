@@ -1,18 +1,19 @@
 # basic config
 alg: fedavg
-suffix: dual-resnet152/Luni-Fpat
+suffix: dual-resnet18-8/Luni-Fdir
 resume_round: 0
 device: [ 0,1 ]
 test_device: [ 0 ] # only used in async FL test
-dataset: domainnet-32-Luni-Fpat
-model: resnet152
+dataset: domainnet-32-Luni-Fdir
+model: resnet18
 #model_in_cpu: true
 
 # federated config
 total_num: 32
-sr: 0.125
-rnd: 400
-test_gap: 4
+sr: 0.25
+rnd: 300
+test_gap: 10
+ckpt_gap: 4
 
 # local training config
 bs: 64
