@@ -6,7 +6,7 @@ batch_size: 10  # batch size
 client_num: 32  # number of clients
 dir_path: domainnet  # dataset path
 
-verbose: false  # whether to print detailed information during partitioning
+verbose: true  # whether to print detailed information during partitioning
 
 # ===== Traditional Dirichlet =====
 alpha: 10000  # Dirichlet distribution parameter, used in 'dir' partition method
@@ -27,4 +27,4 @@ label_alpha: 0.3  # alpha parameter for label distribution (0-1, lower = more he
 feature_partition: pat  # feature distribution method: 'uni' (uniform), 'dir' (dirichlet), or 'pat' (pathological)
 feature_alpha: 0.3  # alpha parameter for feature distribution (0-1, lower = more heterogeneous)
 feature_p: 1  # number of features per client in pathological distribution (each client only has p features)
-feature_pat_mode: uniform  # pathological distribution allocation mode: 'uniform' (equal allocation) or 'proportional' (sample-proportional allocation)
+feature_pat_mode: pathological  # pathological distribution allocation mode: 'uniform' (equal allocation) or 'proportional' (sample-proportional allocation)

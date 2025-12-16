@@ -139,12 +139,12 @@ class BaseClient:
     #                       if selected is True], dim=0)
 
     @staticmethod
-    def _model2tensor(model, pick_flag):
+    def _model2tensor(model, personalized_flag):
         """
         Only pick the parameters with pick_flag == True
         """
-        if not pick_flag: return None
-        selected_param = [p.detach() for pick, p in zip(pick_flag, model.parameters()) if pick]
+        if not personalized_flag: return None
+        selected_param = [p.detach() for pick, p in zip(personalized_flag, model.parameters()) if pick]
         return parameters_to_vector(selected_param).detach()
 
     def model2shared_tensor(self):
@@ -154,25 +154,10 @@ class BaseClient:
         if not self.p_flag: return None
         return self._model2tensor(self.model, self.keep_local)
 
-    # def tensor2model(self, tensor, params=None):
-    #     alg_module = importlib.import_module(f'alg.{self.args.alg}')
-    #     p_keys = getattr(alg_module, 'p_keys') if hasattr(alg_module, 'p_keys') else []
-    #     p_params = [any(key == name.split('.')[0] for key in p_keys)
-    #                 for name, _ in self.model.named_parameters()]
-    #     selected_params = params if params is not None else [not is_p for is_p in p_params]
-    #
-    #     param_index = 0
-    #     for selected, param in zip(selected_params, self.model.parameters()):
-    #         if selected:
-    #             with torch.no_grad():
-    #                 param_size = param.numel()
-    #                 param.copy_(tensor[param_index: param_index + param_size].view(param.shape).detach())
-    #                 param_index += param_size
-
     @staticmethod
-    def _tensor2model(tensor, model, pick_flag):
-        if not pick_flag: return
-        selected_params = [p for pick, p in zip(pick_flag, model.parameters()) if pick]
+    def _tensor2model(tensor, model, personalized_flag):
+        if not personalized_flag: return
+        selected_params = [p for pick, p in zip(personalized_flag, model.parameters()) if pick]
         with torch.no_grad():
             vector_to_parameters(tensor.to(selected_params[0].device), selected_params)
 
@@ -325,7 +310,7 @@ def assert_device(deivce_arg, side='c'):
             if deivce_arg:
                 print(deivce_arg)
                 assert max(
-                    deivce_arg) < torch.cuda.device_count(), f'some device not available! only {torch.cuda.device_count()} cuda devices.'
+                        deivce_arg) < torch.cuda.device_count(), f'some device not available! only {torch.cuda.device_count()} cuda devices.'
                 return deivce_arg
             return 'cpu'
         if isinstance(deivce_arg, int):

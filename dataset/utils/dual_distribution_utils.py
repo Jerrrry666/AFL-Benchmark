@@ -39,7 +39,7 @@ def split_dual_distribution(data: np.ndarray,
 
     feature_partition = config.get('feature_partition', 'uni')  # 'uni', 'dir', 或 'pat'
     feature_p = config.get('feature_p', 2)  # pat分布中每个client的特征种类数
-    feature_pat_mode = config.get('feature_pat_mode', 'uniform')  # pat分布的分配模式：'proportional' 或 'uniform'
+    feature_pat_mode = config.get('feature_pat_mode', 'proportional')  # pat分布的分配模式：'proportional' 或 'uniform'
 
     # feature_alpha只在特征狄利克雷分布时需要
     feature_alpha = None
@@ -79,8 +79,11 @@ def split_dual_distribution(data: np.ndarray,
 
     if feature_partition == 'pat':
         # Pathological分布：每个client只有p种特征
-        dataidx_map = _split_pathological_feature(data, labels, features, num_clients,
-                                                  num_features, feature_p, feature_alpha, feature_pat_mode)
+        # 首先生成特征拓扑结构
+        topology = _generate_pathological_topology(num_clients, num_features, features, feature_p, feature_pat_mode)
+        # 然后在特征约束下分配样本和标签
+        dataidx_map = _distribute_pathological_samples(topology, labels, features, num_clients, num_classes,
+                                                       label_partition, label_alpha)
 
     elif feature_partition == 'dir':
         # 特征层面狄利克雷分布
@@ -92,9 +95,12 @@ def split_dual_distribution(data: np.ndarray,
     else:
         raise ValueError(f"Unknown feature_partition: {feature_partition}")
 
-    # 在特征分布的基础上应用标签分布
-    dataidx_map = _apply_label_distribution(dataidx_map, labels, num_clients, num_classes,
-                                            label_partition, label_alpha, least_samples)
+    # 只有在非pat模式下才需要额外的标签分布处理
+    # pat模式下标签分布已经在_distribute_pathological_samples中处理过了
+    if feature_partition != 'pat':
+        dataidx_map = _apply_label_distribution(dataidx_map, labels, num_clients, num_classes,
+                                                label_partition, label_alpha, least_samples,
+                                                feature_partition, features, dataidx_map)
 
     # 分配数据并收集统计信息
     for client in range(num_clients):
@@ -139,29 +145,19 @@ def split_dual_distribution(data: np.ndarray,
     return X, y, statistic
 
 
-def _split_pathological_feature(data: np.ndarray,
-                                labels: np.ndarray,
-                                features: np.ndarray,
-                                num_clients: int,
-                                num_features: int,
-                                feature_p: int,
-                                alpha: float,
-                                mode: str = 'uniform') -> Dict[int, List[int]]:
+def _generate_pathological_topology(num_clients: int,
+                                    num_features: int,
+                                    features: np.ndarray,
+                                    feature_p: int,
+                                    mode: str = 'uniform') -> Dict[int, List[int]]:
     """
-    Pathological分布：每个client只有p种特征
-    支持两种分配模式：proportional（比例分配）或uniform（均匀分配）
+    生成Pathological分布的特征拓扑结构（即每个client拥有哪些特征）
     """
-    dataidx_map = {i: [] for i in range(num_clients)}
-
     # 统计每个特征的样本数量
     feature_sample_counts = {}
-    feature_indices_map = {}
-
     for feature_id in range(num_features):
         feature_mask = features == feature_id
-        feature_indices = np.where(feature_mask)[0]
-        feature_sample_counts[feature_id] = len(feature_indices)
-        feature_indices_map[feature_id] = feature_indices
+        feature_sample_counts[feature_id] = np.sum(feature_mask)
 
     # 计算每个特征应该被多少个client覆盖
     total_samples = sum(feature_sample_counts.values())
@@ -188,10 +184,7 @@ def _split_pathological_feature(data: np.ndarray,
         feature_client_assignment[feature_id] = assigned_clients
 
     # 为每个client分配特征
-    client_features = {}
-    for client_id in range(num_clients):
-        client_features[client_id] = []
-
+    client_features = {i: [] for i in range(num_clients)}
     for feature_id, clients in feature_client_assignment.items():
         for client_id in clients:
             client_features[client_id].append(feature_id)
@@ -212,35 +205,69 @@ def _split_pathological_feature(data: np.ndarray,
                 needed = feature_p - len(client_features[client_id])
                 client_features[client_id].extend(unassigned_features[:needed])
 
-    # 分配数据 - 修复版：平均分配给持有该特征的client
-    for client_id in range(num_clients):
-        client_feature_list = client_features[client_id]
-        client_indices = []
+    return client_features
 
-        for feature_id in client_feature_list:
-            # 找到持有该特征的所有client
-            clients_with_feature = []
-            for other_client_id in range(num_clients):
-                if feature_id in client_features[other_client_id]:
-                    clients_with_feature.append(other_client_id)
 
-            # 获取该特征的所有样本
-            feature_indices = feature_indices_map[feature_id]
-            np.random.shuffle(feature_indices)
+def _distribute_pathological_samples(client_features: Dict[int, List[int]],
+                                     labels: np.ndarray,
+                                     features: np.ndarray,
+                                     num_clients: int,
+                                     num_classes: int,
+                                     label_partition: str,
+                                     label_alpha: float) -> Dict[int, List[int]]:
+    """
+    根据特征拓扑和标签分布策略分配样本
+    在这里实现了真正的双层分布：
+    1. 首先确保每个client只有指定的feature
+    2. 然后在feature约束下按label_partition策略分配标签
+    """
+    dataidx_map = {i: [] for i in range(num_clients)}
 
-            # 平均分配该特征样本给持有该特征的client
-            split_size = len(feature_indices) // len(clients_with_feature)
-            remainder = len(feature_indices) % len(clients_with_feature)
+    # 反向映射：特征 -> 拥有该特征的Clients
+    feature_to_clients = {}
+    for client_id, feats in client_features.items():
+        for f_id in feats:
+            if f_id not in feature_to_clients:
+                feature_to_clients[f_id] = []
+            feature_to_clients[f_id].append(client_id)
 
-            # 为当前client计算偏移量
-            client_position = clients_with_feature.index(client_id)
-            start_idx = client_position * split_size + min(client_position, remainder)
-            end_idx = start_idx + split_size + (1 if client_position < remainder else 0)
+    num_features = len(np.unique(features))
 
-            # 分配样本
-            client_indices.extend(feature_indices[start_idx:end_idx].tolist())
+    for feature_id in range(num_features):
+        if feature_id not in feature_to_clients:
+            continue
 
-        dataidx_map[client_id] = client_indices
+        clients_with_feature = feature_to_clients[feature_id]
+        if not clients_with_feature:
+            continue
+
+        # 获取该特征的所有样本索引
+        feature_mask = features == feature_id
+        feature_indices = np.where(feature_mask)[0]
+
+        # 按类别分配
+        for class_id in range(num_classes):
+            class_mask = labels[feature_indices] == class_id
+            class_indices_in_feature = feature_indices[class_mask]
+
+            if len(class_indices_in_feature) == 0:
+                continue
+
+            np.random.shuffle(class_indices_in_feature)
+
+            # 确定分配比例
+            if label_partition == 'dir':
+                proportions = np.random.dirichlet([label_alpha] * len(clients_with_feature))
+            else:  # 'uni'
+                proportions = np.array([1.0 / len(clients_with_feature)] * len(clients_with_feature))
+
+            # 计算分割点
+            split_points = (np.cumsum(proportions) * len(class_indices_in_feature)).astype(int)[:-1]
+            split_idxs = np.split(class_indices_in_feature, split_points)
+
+            # 分配给Client
+            for i, client_id in enumerate(clients_with_feature):
+                dataidx_map[client_id].extend(split_idxs[i].tolist())
 
     return dataidx_map
 
@@ -302,15 +329,25 @@ def _apply_label_distribution(dataidx_map: Dict[int, List[int]],
                               num_classes: int,
                               label_partition: str,
                               label_alpha: float,
-                              least_samples: int) -> Dict[int, List[int]]:
+                              least_samples: int,
+                              feature_partition: str,
+                              features: np.ndarray,
+                              original_dataidx_map: Dict[int, List[int]]) -> Dict[int, List[int]]:
     """在特征分布的基础上应用标签分布"""
 
     if label_partition == 'dir':
         # 标签层面狄利克雷分布
+        # 其他情况使用全局dirichlet分布
         return _apply_label_dirichlet(dataidx_map, labels, num_clients, num_classes, label_alpha, least_samples)
     else:  # label_partition == 'uni'
+        # 如果已经进行了特征层面的分配（dataidx_map不为空），且要求标签uni，
+        # 则应保留现有的特征分配，而不是重新进行全局uni分配。
+        if dataidx_map and len(dataidx_map) > 0 and any(len(v) > 0 for v in dataidx_map.values()):
+            return dataidx_map
+
         # 标签层面平均分布
         return _apply_label_uniform(dataidx_map, labels, num_clients, num_classes)
+
 
 
 def _apply_label_dirichlet(dataidx_map: Dict[int, List[int]],
