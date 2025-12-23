@@ -8,16 +8,18 @@ from utils.run_utils import time_record
 
 
 def add_args(parser):
-    parser.add_argument('--alpha', type=float, default=3.0)
-    parser.add_argument('--beta', type=float, default=1.0)
-    parser.add_argument('--omega', type=int, default=10)
-    parser.add_argument('--min_clients', type=int, default=10)
+    parser.add_argument("--alpha", type=float, default=3.0)
+    parser.add_argument("--beta", type=float, default=1.0)
+    parser.add_argument("--omega", type=int, default=10)
+    parser.add_argument("--min_clients", type=int, default=10)
     return parser.parse_args()
+
 
 class EventStatus(Enum):
     READY = 0
     TRAIN = 1
     AGGREGATE = 2
+
 
 class Event:
     def __init__(self, status, client):
@@ -69,7 +71,9 @@ class Server(AsyncBaseServer):
 
     def client_update(self):
         for c in filter(lambda x: x.status != Status.ACTIVE, self.sampled_clients):
-            heapq.heappush(self.client_queue, (self.wall_clock_time, Event(EventStatus.READY, c)))
+            heapq.heappush(
+                self.client_queue, (self.wall_clock_time, Event(EventStatus.READY, c))
+            )
 
         while True:
             self.wall_clock_time, event = heapq.heappop(self.client_queue)
@@ -78,16 +82,26 @@ class Server(AsyncBaseServer):
                 break
             else:
                 c = event.client
-                c.cur_epoch = 0 if event.status == EventStatus.READY else c.cur_epoch + 1
+                c.cur_epoch = (
+                    0 if event.status == EventStatus.READY else c.cur_epoch + 1
+                )
 
                 if c.cur_epoch == self.epoch or c.urgent:
-                    heapq.heappush(self.client_queue, (self.wall_clock_time, Event(EventStatus.AGGREGATE, c)))
+                    heapq.heappush(
+                        self.client_queue,
+                        (self.wall_clock_time, Event(EventStatus.AGGREGATE, c)),
+                    )
                 else:
                     c.model.train()
                     c.reset_optimizer(False)
                     c.run()
-                    heapq.heappush(self.client_queue,
-                                   (self.wall_clock_time + c.training_time, Event(EventStatus.TRAIN, c)))
+                    heapq.heappush(
+                        self.client_queue,
+                        (
+                            self.wall_clock_time + c.training_time,
+                            Event(EventStatus.TRAIN, c),
+                        ),
+                    )
                 c.status = Status.ACTIVE
 
     def update_status(self):
@@ -113,24 +127,27 @@ class Server(AsyncBaseServer):
         return self.beta * (cosine_sim + 1) / 2
 
     def aggregate(self):
-        self.buffer.append({
-            'id': self.cur_client.id,
-            'update': self.cur_client.model2shared_tensor(),
-            'size': len(self.cur_client.dataset_train),
-        })
+        self.buffer.append(
+            {
+                "id": self.cur_client.id,
+                "update": self.cur_client.model2shared_tensor(),
+                "size": len(self.cur_client.dataset_train),
+            }
+        )
 
         if len(self.buffer) >= self.min_clients:
             weights = []
             for b in self.buffer:
-                s_discount = self.compute_staleness_discount(b['id'])
-                i_discount = self.compute_interference_discount(b['update'])
-                weights.append(b['size'] * (s_discount + i_discount))
+                s_discount = self.compute_staleness_discount(b["id"])
+                i_discount = self.compute_interference_discount(b["update"])
+                weights.append(b["size"] * (s_discount + i_discount))
             weights = torch.tensor(weights) / torch.sum(torch.tensor(weights))
-            aggr_tensor = sum(b['update'] * w for b, w in zip(self.buffer, weights))
+            aggr_tensor = sum(b["update"] * w for b, w in zip(self.buffer, weights))
             self.shared_tensor2model(aggr_tensor)
             self.prev_model = aggr_tensor
 
     def notify(self):
         for client in filter(lambda x: x.status == Status.ACTIVE, self.clients):
             # Use get_staleness method instead of accessing staleness array
-            if self.get_staleness(client) > self.omega: client.urgent = True
+            if self.get_staleness(client) > self.omega:
+                client.urgent = True

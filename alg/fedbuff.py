@@ -5,8 +5,8 @@ from utils.run_utils import time_record
 
 
 def add_args(parser):
-    parser.add_argument('--etag', type=float, default=5)
-    parser.add_argument('--k', type=int, default=10)
+    parser.add_argument("--etag", type=float, default=5)
+    parser.add_argument("--k", type=int, default=10)
     return parser.parse_args()
 
 
@@ -36,7 +36,12 @@ class Server(AsyncBaseServer):
 
         if len(self.buffer) == self.args.k:
             t_g = self.model2shared_tensor()
-            t_g_new = t_g + self.args.etag * torch.mean(torch.stack(self.buffer), dim=0) / self.args.k
+            t_g_new = (
+                t_g
+                + self.args.etag
+                * torch.mean(torch.stack(self.buffer), dim=0)
+                / self.args.k
+            )
             self.shared_tensor2model(t_g_new)
 
             self.buffer = []

@@ -8,7 +8,7 @@ import yaml
 
 def _load_yaml_dict(path: Path) -> dict:
     try:
-        with path.open('r', encoding='utf-8') as f:
+        with path.open("r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
     except Exception:
         return {}
@@ -17,7 +17,7 @@ def _load_yaml_dict(path: Path) -> dict:
 def args_parser():
     # ===== minimal parser to capture --cfg from CLI =====
     prelim_parser = argparse.ArgumentParser(add_help=False)
-    prelim_parser.add_argument('--cfg', type=str, default='config1.yaml', help='Model')
+    prelim_parser.add_argument("--cfg", type=str, default="config1.yaml", help="Model")
     prelim_args, _ = prelim_parser.parse_known_args()
 
     # Load YAML defaults using the config path from CLI
@@ -30,30 +30,44 @@ def args_parser():
     # ===== full parser with all common arguments =====
     parser = argparse.ArgumentParser(parents=[prelim_parser])
 
-    parser.add_argument('--alg', type=str, help='Algorithm')
+    parser.add_argument("--alg", type=str, help="Algorithm")
 
     # ----- Basic Setting -----
-    parser.add_argument('--suffix', type=str, help="Suffix for file")
-    parser.add_argument('--resume_round', type=int, default=-1, help="Round to resume from, -1 for max")
-    parser.add_argument('--device', type=int, help="Device to use")
-    parser.add_argument('--max_per_device', type=int, default=1, help="Maximum concurrent clients per device")
-    parser.add_argument('--dataset', type=str, help="Dataset")
-    parser.add_argument('--model', type=str, help="Model")
+    parser.add_argument("--suffix", type=str, help="Suffix for file")
+    parser.add_argument(
+        "--resume_round", type=int, default=-1, help="Round to resume from, -1 for max"
+    )
+    parser.add_argument("--device", type=int, help="Device to use")
+    parser.add_argument(
+        "--max_per_device",
+        type=int,
+        default=1,
+        help="Maximum concurrent clients per device",
+    )
+    parser.add_argument("--dataset", type=str, help="Dataset")
+    parser.add_argument("--model", type=str, help="Model")
 
     # ----- Federated Setting -----
-    parser.add_argument('--total_num', type=int, help="Total clients num")
-    parser.add_argument('--sr', type=float, help="Clients sample rate")
-    parser.add_argument('--rnd', type=int, help="Communication rounds")
-    parser.add_argument('--test_gap', type=int, help='Rounds between test phases')
+    parser.add_argument("--total_num", type=int, help="Total clients num")
+    parser.add_argument("--sr", type=float, help="Clients sample rate")
+    parser.add_argument("--rnd", type=int, help="Communication rounds")
+    parser.add_argument("--test_gap", type=int, help="Rounds between test phases")
 
     # ----- Local Training Setting -----
-    parser.add_argument('--bs', type=int, help="Batch size")
-    parser.add_argument('--epoch', type=int, help="Epoch num")
-    parser.add_argument('--lr', type=float, help="Learning rate")
-    parser.add_argument('--gamma', type=float, help="Exponential decay of learning rate")
+    parser.add_argument("--bs", type=int, help="Batch size")
+    parser.add_argument("--epoch", type=int, help="Epoch num")
+    parser.add_argument("--lr", type=float, help="Learning rate")
+    parser.add_argument(
+        "--gamma", type=float, help="Exponential decay of learning rate"
+    )
 
     # ----- Async Setting -----
-    parser.add_argument('--decay', type=float, default=0.3, help="Basic weight decay in asynchronous aggregation")
+    parser.add_argument(
+        "--decay",
+        type=float,
+        default=0.3,
+        help="Basic weight decay in asynchronous aggregation",
+    )
 
     # Apply YAML defaults
     parser.set_defaults(**yaml_config)
@@ -61,8 +75,8 @@ def args_parser():
     # Pre-parse known args to detect --alg without failing on yet-to-be-added options
     args, _ = parser.parse_known_args()
     if args.alg:
-        alg_module = importlib.import_module(f'alg.{args.alg}')
-        if hasattr(alg_module, 'add_args'):
+        alg_module = importlib.import_module(f"alg.{args.alg}")
+        if hasattr(alg_module, "add_args"):
             alg_module.add_args(parser)
     # Final parse after possibly extending the parser
     args = parser.parse_args()
@@ -71,21 +85,29 @@ def args_parser():
     return args
 
 
-def compare_configs(config_path_a: str | Path,
-                    config_path_b: str | Path,
-                    compare_keys: Optional[List[str]] = None) -> bool:
+def compare_configs(
+    config_path_a: str | Path,
+    config_path_b: str | Path,
+    compare_keys: Optional[List[str]] = None,
+) -> bool:
     """Compare two YAML config files on a subset of keys.
     Returns True if the selected key-values match exactly.
-"""
+    """
     # Define default keys to compare if none provided
     if compare_keys is None:
         compare_keys = [
             # Basic config
-            "alg", "dataset", "model",
+            "alg",
+            "dataset",
+            "model",
             # Federated config
-            "total_num", "sr",
+            "total_num",
+            "sr",
             # Local training config
-            "bs", "epoch", "lr", "gamma"
+            "bs",
+            "epoch",
+            "lr",
+            "gamma",
         ]
 
     path_a = Path(config_path_a)

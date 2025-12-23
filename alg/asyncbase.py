@@ -11,21 +11,21 @@ from alg.base import BaseClient, BaseServer, assert_device
 from utils.run_utils import OnDeviceRun
 
 
-def compute_staleness_weight(staleness, strategy='hinge', a=1, b=4):
+def compute_staleness_weight(staleness, strategy="hinge", a=1, b=4):
     """计算staleness权重，支持多种策略
-    
+
     Args:
         staleness: staleness值
         strategy: 权重策略 ('constant', 'poly', 'hinge')
         a: poly策略的指数参数，hinge策略的分子参数
         b: hinge策略的分母参数
-    
+
     Returns:
         float: staleness权重
     """
-    if strategy == 'poly':
+    if strategy == "poly":
         return 1 / ((staleness + 1) ** abs(a))
-    elif strategy == 'hinge':
+    elif strategy == "hinge":
         return 1 / (a * (staleness + b) + 1) if staleness > b else 1
     else:  # constant
         return 1
@@ -34,6 +34,7 @@ def compute_staleness_weight(staleness, strategy='hinge', a=1, b=4):
 # Usage of Status
 # During training, those training are set to Status.ACTIVE, the active clients will update staleness, and will not be sampled
 # After aggregation, the aggregated is set to Status.IDLE
+
 
 class Status(Enum):
     IDLE = 1
@@ -44,8 +45,12 @@ class Status(Enum):
 class AsyncBaseClient(BaseClient):
     def __init__(self, id, args):
         super().__init__(id, args)
-        self.gamma = args.gamma ** (1 / int(self.args.total_num * self.args.sr))  # adapt LR decay gamma for Async
-        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optim, gamma=self.gamma)
+        self.gamma = args.gamma ** (
+            1 / int(self.args.total_num * self.args.sr)
+        )  # adapt LR decay gamma for Async
+        self.scheduler = torch.optim.lr_scheduler.ExponentialLR(
+            self.optim, gamma=self.gamma
+        )
 
         self.status = Status.IDLE
 
@@ -64,12 +69,18 @@ class AsyncBaseServer(BaseServer):
         # self.staleness = [0 for _ in self.clients]
         self.cur_client = None
 
-        self.max_concurrent_per_device = getattr(args, 'max_concurrent_per_device', 2)
-        self.aggregation_batch_size = getattr(args, 'aggregation_batch_size', 1)
-        self.devices = assert_device(args.device, 's') if hasattr(args, 'device') else ['cpu']
+        self.max_concurrent_per_device = getattr(args, "max_concurrent_per_device", 2)
+        self.aggregation_batch_size = getattr(args, "aggregation_batch_size", 1)
+        self.devices = (
+            assert_device(args.device, "s") if hasattr(args, "device") else ["cpu"]
+        )
         if isinstance(self.devices, str):
             self.devices = [self.devices]
-        self.test_devices = assert_device(args.test_device, 's') if hasattr(args, 'test_device') else ['cpu']
+        self.test_devices = (
+            assert_device(args.test_device, "s")
+            if hasattr(args, "test_device")
+            else ["cpu"]
+        )
         if isinstance(self.test_devices, str):
             self.test_devices = [self.test_devices]
         self.max_total_concurrent = len(self.devices) * self.max_concurrent_per_device
@@ -89,10 +100,10 @@ class AsyncBaseServer(BaseServer):
         """
         Calculate staleness for a client based on the difference between current server round
         and the round when client started training.
-        
+
         Args:
             client: The client instance
-            
+
         Returns:
             int: Staleness value (current_round - task_round)
         """
@@ -106,7 +117,9 @@ class AsyncBaseServer(BaseServer):
             return
 
         idle_clients = [c for c in self.clients if c.status != Status.ACTIVE]
-        self.sampled_clients = random.sample(idle_clients, self.MAX_CONCURRENCY - active_num)
+        self.sampled_clients = random.sample(
+            idle_clients, self.MAX_CONCURRENCY - active_num
+        )
         # No need to reset staleness here - it will be calculated on-demand
 
     def downlink(self):
@@ -134,14 +147,18 @@ class AsyncBaseServer(BaseServer):
 
                     # 缓存个性化参数用于测试（训练开始前的状态）
                     # 使用model2personalized_tensor保存个性化参数，更高效
-                    client.cached_personalized_params = client.model2personalized_tensor()
+                    client.cached_personalized_params = (
+                        client.model2personalized_tensor()
+                    )
 
-                    with OnDeviceRun(client, device, 'train') as c:
+                    with OnDeviceRun(client, device, "train") as c:
                         c.run()
 
                     # 训练完成后立即加入待聚合队列（此时client仍然是ACTIVE状态）
-                    heapq.heappush(self.pending_aggregation_queue,
-                                   (self.wall_clock_time + client.training_time, client))
+                    heapq.heappush(
+                        self.pending_aggregation_queue,
+                        (self.wall_clock_time + client.training_time, client),
+                    )
 
                 except Exception as e:
                     client.status = Status.ERROR
@@ -155,7 +172,9 @@ class AsyncBaseServer(BaseServer):
             for idx, client in enumerate(self.sampled_clients):
                 if client.status != Status.ACTIVE:
                     device = self.devices[idx % len(self.devices)]
-                    futures.append(executor.submit(train_client_on_device, client, device))
+                    futures.append(
+                        executor.submit(train_client_on_device, client, device)
+                    )
 
             # 等待所有训练任务完成（不阻塞，只是确保任务启动）
             for future in as_completed(futures):
@@ -169,7 +188,9 @@ class AsyncBaseServer(BaseServer):
         self.clients_to_aggregate = []
 
         # 从待聚合队列中获取一批客户端（按完成时间排序）
-        batch_size = min(self.aggregation_batch_size, len(self.pending_aggregation_queue))
+        batch_size = min(
+            self.aggregation_batch_size, len(self.pending_aggregation_queue)
+        )
 
         for _ in range(batch_size):
             if self.pending_aggregation_queue:
@@ -178,7 +199,10 @@ class AsyncBaseServer(BaseServer):
 
         # 更新墙钟时间到这批客户端的最晚完成时间
         if self.clients_to_aggregate:
-            max_time = max(self.wall_clock_time + client.training_time for client in self.clients_to_aggregate)
+            max_time = max(
+                self.wall_clock_time + client.training_time
+                for client in self.clients_to_aggregate
+            )
             self.wall_clock_time = max(self.wall_clock_time, max_time)
 
     def aggregate(self):
@@ -188,7 +212,7 @@ class AsyncBaseServer(BaseServer):
 
         # 确保所有客户端模型参数都在CPU上，避免设备不一致问题
         for client in self.clients_to_aggregate:
-            client.model.to('cpu')
+            client.model.to("cpu")
 
         # todo 半异步下，如何计算权重？
         # 计算加权聚合权重（考虑staleness和数据量）
@@ -220,7 +244,10 @@ class AsyncBaseServer(BaseServer):
         if weighted_params is not None and total_weight > 0:
             aggregated_params = weighted_params / total_weight
             # 与服务器模型混合
-            mixed_params = self.decay * aggregated_params + (1 - self.decay) * self.model2shared_tensor()
+            mixed_params = (
+                self.decay * aggregated_params
+                + (1 - self.decay) * self.model2shared_tensor()
+            )
             self.shared_tensor2model(mixed_params)
 
     def update_status(self):
@@ -229,7 +256,7 @@ class AsyncBaseServer(BaseServer):
         for client in self.clients_to_aggregate:
             client.status = Status.IDLE
             # 清理个性化参数缓存以节省内存
-            if hasattr(client, 'cached_personalized_params'):
+            if hasattr(client, "cached_personalized_params"):
                 client.cached_personalized_params = None
 
         # 清空当前批次的聚合列表
@@ -237,25 +264,31 @@ class AsyncBaseServer(BaseServer):
 
     def test_all(self):
         """使用个性化参数的并行测试，避免影响正在训练的客户端"""
-        self.metric['acc'] = []
+        self.metric["acc"] = []
 
         def _eval_one(client, device):
             """测试单个客户端，根据状态选择测试策略"""
-            if client.status == Status.ACTIVE and hasattr(client,
-                                                          'cached_personalized_params') and client.cached_personalized_params is not None:
+            if (
+                client.status == Status.ACTIVE
+                and hasattr(client, "cached_personalized_params")
+                and client.cached_personalized_params is not None
+            ):
                 # 客户端正在训练中，使用缓存的个性化参数恢复测试模型状态
                 with torch.no_grad():
                     # 创建测试模型：服务器模型 + 个性化参数
                     import copy
+
                     test_model = copy.deepcopy(client.model)  # 当前服务器模型状态
-                    test_model.to('cpu')  # 确保在CPU上
+                    test_model.to("cpu")  # 确保在CPU上
 
                     # 保存当前个性化参数
                     current_personalized = client.model2personalized_tensor()
 
                     # 应用缓存的个性化参数到测试模型
                     if client.cached_personalized_params is not None:
-                        client.personalized_tensor2model(client.cached_personalized_params)
+                        client.personalized_tensor2model(
+                            client.cached_personalized_params
+                        )
 
                     # 使用恢复的测试模型进行测试
                     test_model.eval()
@@ -269,7 +302,7 @@ class AsyncBaseServer(BaseServer):
                         total += y.size(0)
                         correct += (preds_y == y).sum().item()
 
-                    client.metric['acc'] = 100.00 * correct / total
+                    client.metric["acc"] = 100.00 * correct / total
 
                     # 恢复当前个性化参数
                     if current_personalized is not None:
@@ -278,7 +311,7 @@ class AsyncBaseServer(BaseServer):
                     # 清理临时测试模型
                     del test_model
 
-                    return client.metric['acc']
+                    return client.metric["acc"]
             else:
                 # 客户端不在训练中，使用正常测试流程
                 return _test_client_normal(self, client, device)
@@ -287,10 +320,10 @@ class AsyncBaseServer(BaseServer):
             """正常的客户端测试流程"""
             context = client.model2shared_tensor()
             client.clone_model(self)
-            with OnDeviceRun(client, device, 'eval') as c:
+            with OnDeviceRun(client, device, "eval") as c:
                 c.local_test()
             client.shared_tensor2model(context)
-            return client.metric['acc']
+            return client.metric["acc"]
 
         # 并行测试所有客户端
         max_workers = max(1, len(self.test_devices))
@@ -300,14 +333,18 @@ class AsyncBaseServer(BaseServer):
             futures = []
             for client in self.clients:
                 idx = client.id
-                device = self.test_devices[idx % len(self.test_devices)] if self.test_devices else 'cpu'
+                device = (
+                    self.test_devices[idx % len(self.test_devices)]
+                    if self.test_devices
+                    else "cpu"
+                )
                 futures.append((idx, ex.submit(_eval_one, client, device)))
 
             for idx, fut in futures:
                 acc_results[idx] = fut.result()
 
-        self.metric['acc'] = acc_results
+        self.metric["acc"] = acc_results
         return {
-            'acc'    : np.mean(self.metric['acc']),
-            'acc_std': np.std(self.metric['acc']),
+            "acc": np.mean(self.metric["acc"]),
+            "acc_std": np.std(self.metric["acc"]),
         }

@@ -18,26 +18,43 @@ class ClusterServer(BaseServer):
     def __init__(self, id, args, clients):
         super().__init__(id, args, clients)
 
-        self.cluster_num = args.cluster_num if 'cluster_num' in args.__dict__ else 1
+        self.cluster_num = args.cluster_num if "cluster_num" in args.__dict__ else 1
         assert self.cluster_num > 0
-        self.cluster_list = [Cluster(idx, self.model2shared_tensor()) for idx in range(self.cluster_num)]
+        self.cluster_list = [
+            Cluster(idx, self.model2shared_tensor()) for idx in range(self.cluster_num)
+        ]
 
     def uplink(self):
-        assert (len(self.sampled_clients) > 0)
+        assert len(self.sampled_clients) > 0
+
         def nan_to_zero(tensor):
             return torch.where(torch.isnan(tensor), torch.zeros_like(tensor), tensor)
+
         for cluster in self.cluster_list:
-            cluster.received_params = [nan_to_zero(client.model2shared_tensor())
-                                       for client in self.sampled_clients
-                                       if client.cluster_id == cluster.id]
+            cluster.received_params = [
+                nan_to_zero(client.model2shared_tensor())
+                for client in self.sampled_clients
+                if client.cluster_id == cluster.id
+            ]
 
     def aggregate(self):
-        assert (len(self.sampled_clients) > 0)
+        assert len(self.sampled_clients) > 0
         for cluster in self.cluster_list:
-            total_samples = sum(len(client.dataset_train) for client in self.sampled_clients if client.cluster_id == cluster.id)
-            weights = [len(client.dataset_train) / total_samples for client in self.sampled_clients if client.cluster_id == cluster.id]
+            total_samples = sum(
+                len(client.dataset_train)
+                for client in self.sampled_clients
+                if client.cluster_id == cluster.id
+            )
+            weights = [
+                len(client.dataset_train) / total_samples
+                for client in self.sampled_clients
+                if client.cluster_id == cluster.id
+            ]
 
-            cluster.received_params = [params * weight for weight, params in zip(weights, cluster.received_params)]
+            cluster.received_params = [
+                params * weight
+                for weight, params in zip(weights, cluster.received_params)
+            ]
             if len(cluster.received_params) != 0:
                 cluster.model = sum(cluster.received_params)
 

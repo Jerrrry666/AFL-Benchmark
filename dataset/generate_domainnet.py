@@ -13,14 +13,17 @@ from PIL import Image
 from tqdm import tqdm
 
 from utils.dataset_utils import check, save_file, split_data
-from utils.dual_distribution_utils import save_detailed_statistics, split_dual_distribution
+from utils.dual_distribution_utils import (
+    save_detailed_statistics,
+    split_dual_distribution,
+)
 
 random.seed(1)
 np.random.seed(1)
 
 # DomainNet特定配置
-ROOT_DIR = '/home/mayiming/Dataset/DomainNet/'
-DOMAIN_NAMES = ['clipart', 'infograph', 'painting', 'quickdraw', 'real', 'sketch']
+ROOT_DIR = "/home/mayiming/Dataset/DomainNet/"
+DOMAIN_NAMES = ["clipart", "infograph", "painting", "quickdraw", "real", "sketch"]
 NUM_CLASSES_PER_DOMAIN = 345
 
 
@@ -46,20 +49,19 @@ class DomainNetLoader:
         print("💾 Saving data to cache...")
 
         # 保存数据
-        np.savez_compressed(str(self.cache_data_path),
-                            data=data,
-                            labels=labels,
-                            domains=domains)
+        np.savez_compressed(
+            str(self.cache_data_path), data=data, labels=labels, domains=domains
+        )
 
         # 保存简化的元数据
         cache_metadata = {
-            'cache_time'   : str(np.datetime64('now')),
-            'total_samples': len(data),
-            'num_classes'  : len(np.unique(labels)),
-            'num_domains'  : len(np.unique(domains))
+            "cache_time": str(np.datetime64("now")),
+            "total_samples": len(data),
+            "num_classes": len(np.unique(labels)),
+            "num_domains": len(np.unique(domains)),
         }
 
-        with open(self.cache_metadata_path, 'w') as f:
+        with open(self.cache_metadata_path, "w") as f:
             json.dump(cache_metadata, f, indent=2)
 
         print(f"✅ Cache saved to {self.cache_data_path}")
@@ -70,12 +72,13 @@ class DomainNetLoader:
 
         try:
             cache_data = np.load(str(self.cache_data_path), allow_pickle=True)
-            data = cache_data['data']
-            labels = cache_data['labels']
-            domains = cache_data['domains']
+            data = cache_data["data"]
+            labels = cache_data["labels"]
+            domains = cache_data["domains"]
 
             print(
-                    f"✅ Cache loaded: {len(data)} samples, {len(np.unique(labels))} classes, {len(np.unique(domains))} domains")
+                f"✅ Cache loaded: {len(data)} samples, {len(np.unique(labels))} classes, {len(np.unique(domains))} domains"
+            )
             return data, labels, domains
 
         except Exception as e:
@@ -112,12 +115,14 @@ class DomainNetLoader:
             class_dirs = [d for d in domain_path.iterdir() if d.is_dir()]
             class_dirs = sorted(class_dirs)  # 确保顺序一致
 
-            for class_idx, class_dir in enumerate(tqdm(class_dirs, desc=f"Classes in {domain_name}")):
+            for class_idx, class_dir in enumerate(
+                tqdm(class_dirs, desc=f"Classes in {domain_name}")
+            ):
                 class_name = class_dir.name
 
                 # 获取该类别下的所有图片文件
                 img_files = []
-                for ext in ['*.jpg', '*.jpeg', '*.png', '*.bmp']:
+                for ext in ["*.jpg", "*.jpeg", "*.png", "*.bmp"]:
                     img_files.extend(class_dir.glob(ext))
 
                 for img_file in img_files:
@@ -135,7 +140,8 @@ class DomainNetLoader:
                         continue
 
         print(
-                f"✅ Dataset loaded: {len(all_data)} samples, {len(set(all_labels))} classes, {len(set(all_domains))} domains")
+            f"✅ Dataset loaded: {len(all_data)} samples, {len(set(all_labels))} classes, {len(set(all_domains))} domains"
+        )
 
         # 保存到缓存
         if all_data:  # 只有在有数据时才保存缓存
@@ -160,7 +166,9 @@ class DomainNetLoader:
 
 
 def generate_dataset(cfg):
-    dir_path = Path(f'{cfg['dir_path']}-{cfg["client_num"]}-L{cfg["label_partition"]}-F{cfg["feature_partition"]}')
+    dir_path = Path(
+        f'{cfg['dir_path']}-{cfg["client_num"]}-L{cfg["label_partition"]}-F{cfg["feature_partition"]}'
+    )
     dir_path.mkdir(parents=True, exist_ok=True)
 
     if check(cfg):
@@ -173,7 +181,9 @@ def generate_dataset(cfg):
     X, y, domains = dataset.load_dataset()
 
     if len(X) == 0:
-        raise RuntimeError("No data loaded! Please check if DomainNet dataset exists at the specified path.")
+        raise RuntimeError(
+            "No data loaded! Please check if DomainNet dataset exists at the specified path."
+        )
 
     print(f"Dataset summary:")
     print(f"  Total samples: \t{len(X)}")
@@ -182,8 +192,8 @@ def generate_dataset(cfg):
     print(f"  Domain distribution: \t{np.bincount(domains)}")
 
     # 更新配置
-    cfg['class_num'] = len(np.unique(y))
-    cfg['domain_num'] = len(np.unique(domains))
+    cfg["class_num"] = len(np.unique(y))
+    cfg["domain_num"] = len(np.unique(domains))
 
     # 使用双层分布控制进行数据切分
     print("\nApplying dual distribution split...")
@@ -207,35 +217,37 @@ def generate_dataset(cfg):
 def _save_domainnet_metadata(dir_path, cfg, dataset):
     """保存DomainNet特定的元数据"""
     metadata = {
-        'domain_names'            : DOMAIN_NAMES,
-        'num_domains'             : len(DOMAIN_NAMES),
-        'num_classes_per_domain'  : NUM_CLASSES_PER_DOMAIN,
-        'class_mapping'           : dataset.get_class_mapping(),
-        'dual_distribution_config': {
-            'label_partition'  : cfg.get('label_partition', 'uni'),
-            'label_alpha'      : cfg.get('label_alpha', 10000),
-            'feature_partition': cfg.get('feature_partition', 'uni'),
-            'feature_alpha'    : cfg.get('feature_alpha', 10000),
-        }
+        "domain_names": DOMAIN_NAMES,
+        "num_domains": len(DOMAIN_NAMES),
+        "num_classes_per_domain": NUM_CLASSES_PER_DOMAIN,
+        "class_mapping": dataset.get_class_mapping(),
+        "dual_distribution_config": {
+            "label_partition": cfg.get("label_partition", "uni"),
+            "label_alpha": cfg.get("label_alpha", 10000),
+            "feature_partition": cfg.get("feature_partition", "uni"),
+            "feature_alpha": cfg.get("feature_alpha", 10000),
+        },
     }
 
     metadata_path = dir_path / "domainnet_metadata.yaml"
-    with metadata_path.open('w') as f:
+    with metadata_path.open("w") as f:
         yaml.dump(metadata, f, default_flow_style=False)
 
     print(f"DomainNet metadata saved to: {metadata_path}")
 
 
 if __name__ == "__main__":
-    with Path('config.yaml').open('r') as f:
+    with Path("config.yaml").open("r") as f:
         config = yaml.load(f.read(), Loader=yaml.Loader)
 
     # 验证配置
-    assert config['dir_path'].lower() == 'domainnet', \
-        'Dataset name does not match saving dir_path (dataset/config.yaml) !'
+    assert (
+        config["dir_path"].lower() == "domainnet"
+    ), "Dataset name does not match saving dir_path (dataset/config.yaml) !"
 
-    assert config['partition'] == 'dual', \
-        'DomainNet requires partition: dual for dual distribution!'
+    assert (
+        config["partition"] == "dual"
+    ), "DomainNet requires partition: dual for dual distribution!"
 
     # 生成数据集
     generate_dataset(config)

@@ -1,10 +1,12 @@
 from alg.base import BaseClient, BaseServer
 from utils.run_utils import time_record
 
+
 class Client(BaseClient):
     @time_record
     def run(self):
         self.train()
+
 
 class Server(BaseServer):
     def run(self):

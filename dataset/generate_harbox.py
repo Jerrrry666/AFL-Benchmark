@@ -8,13 +8,14 @@ from dataset.utils.dataset_utils import save_file, split_data
 
 random.seed(0)
 
-class_set = ['Call', 'Hop', 'typing', 'Walk', 'Wave']
+class_set = ["Call", "Hop", "typing", "Walk", "Wave"]
 label = [0, 1, 2, 3, 4]
 
 NUM_OF_CLASS = 5
 DIMENSION_OF_FEATURE = 900
 
-SOURCE_PATH = '../../large_scale_HARBox'
+SOURCE_PATH = "../../large_scale_HARBox"
+
 
 def load_data(client_id):
     coll_class = []
@@ -22,7 +23,9 @@ def load_data(client_id):
 
     for class_id in range(NUM_OF_CLASS):
         # NOTE: the client-0 is empty!
-        read_path = Path(SOURCE_PATH) / str(client_id+1) / f"{class_set[class_id]}_train.txt"
+        read_path = (
+            Path(SOURCE_PATH) / str(client_id + 1) / f"{class_set[class_id]}_train.txt"
+        )
         print(read_path)
 
         if read_path.exists():
@@ -39,6 +42,7 @@ def load_data(client_id):
 
     return coll_class, coll_label
 
+
 def generate_dataset(cfg):
     X = []
     y = []
@@ -49,7 +53,8 @@ def generate_dataset(cfg):
     train_data, test_data = split_data(X, y, cfg)
     save_file(train_data, test_data, cfg)
 
+
 if __name__ == "__main__":
-    with Path('config.yaml').open('r') as f:
+    with Path("config.yaml").open("r") as f:
         config = yaml.load(f.read(), Loader=yaml.Loader)
     generate_dataset(config)

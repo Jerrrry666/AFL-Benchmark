@@ -7,7 +7,9 @@ import numpy as np
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 
-ALL_LETTERS = "\n !\"&'(),-.0123456789:;>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[]abcdefghijklmnopqrstuvwxyz}"
+ALL_LETTERS = (
+    "\n !\"&'(),-.0123456789:;>?ABCDEFGHIJKLMNOPQRSTUVWXYZ[]abcdefghijklmnopqrstuvwxyz}"
+)
 NUM_LETTERS = len(ALL_LETTERS)
 
 
@@ -27,7 +29,7 @@ def letter_to_vec(letter):
 
 
 def word_to_indices(word):
-    print('num of letters (classes):', NUM_LETTERS)
+    print("num of letters (classes):", NUM_LETTERS)
     indices = []
     for c in word:
         indices.append(ALL_LETTERS.find(c))
@@ -63,14 +65,14 @@ def bag_of_words(line, vocab):
 
 
 def get_word_emb_arr(path):
-    with open(path, 'r') as inf:
+    with open(path, "r") as inf:
         embs = json.load(inf)
-    vocab = embs['vocab']
-    word_emb_arr = np.array(embs['emba'])
+    vocab = embs["vocab"]
+    word_emb_arr = np.array(embs["emba"])
     indd = {}
     for i in range(len(vocab)):
         indd[vocab[i]] = i
-    vocab = {w: i for i, w in enumerate(embs['vocab'])}
+    vocab = {w: i for i, w in enumerate(embs["vocab"])}
     return word_emb_arr, indd, vocab
 
 
@@ -82,19 +84,19 @@ def val_to_vec(size, val):
 
 
 def tokenizer(text, max_len, max_tokens=32000):
-    tokenizer = get_tokenizer('basic_english')
+    tokenizer = get_tokenizer("basic_english")
     vocab = build_vocab_from_iterator(
         map(tokenizer, iter(text)),
-        specials=['<pad>', '<cls>', '<unk>', '<eos>'],
+        specials=["<pad>", "<cls>", "<unk>", "<eos>"],
         special_first=True,
-        max_tokens=max_tokens
+        max_tokens=max_tokens,
     )
-    vocab.set_default_index(vocab['<unk>'])
+    vocab.set_default_index(vocab["<unk>"])
     text_pipeline = lambda x: vocab(tokenizer(x))
 
     text_list = []
     for t in text:
-        tokens = [vocab['<cls>']] + text_pipeline(t) # a list of tokens
+        tokens = [vocab["<cls>"]] + text_pipeline(t)  # a list of tokens
         padding = [0 for i in range(max_len - len(tokens))]  # fill the rest with 0
         tokens.extend(padding)
         text_list.append(tokens[:max_len])

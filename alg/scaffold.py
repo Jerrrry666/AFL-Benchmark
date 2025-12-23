@@ -5,8 +5,9 @@ from utils.run_utils import time_record
 
 
 def add_args(parser):
-    parser.add_argument('--eta_g', type=float, default=0.001)
+    parser.add_argument("--eta_g", type=float, default=0.001)
     return parser.parse_args()
+
 
 class Client(BaseClient):
     def __init__(self, id, args):
@@ -19,15 +20,26 @@ class Client(BaseClient):
     def run(self):
         prev_model = self.model2shared_tensor()
         self.train()
-        self.shared_tensor2model(self.model2shared_tensor() - self.lr * (self.server.C - self.C))
-        C_plus = self.C - self.server.C + (prev_model - self.model2shared_tensor()) / (self.epoch * self.lr)
+        self.shared_tensor2model(
+            self.model2shared_tensor() - self.lr * (self.server.C - self.C)
+        )
+        C_plus = (
+            self.C
+            - self.server.C
+            + (prev_model - self.model2shared_tensor()) / (self.epoch * self.lr)
+        )
         self.delta_C = C_plus - self.C
         self.C = C_plus
         self.delta_W = self.model2shared_tensor() - prev_model
 
     def comm_bytes(self):
         model_tensor = self.model2shared_tensor()
-        return model_tensor.numel() * model_tensor.element_size() + self.C.numel() + self.C.element_size()
+        return (
+            model_tensor.numel() * model_tensor.element_size()
+            + self.C.numel()
+            + self.C.element_size()
+        )
+
 
 class Server(BaseServer):
     def __init__(self, id, args, clients):
@@ -43,14 +55,20 @@ class Server(BaseServer):
         self.aggregate()
 
     def uplink(self):
-        assert (len(self.sampled_clients) > 0)
+        assert len(self.sampled_clients) > 0
+
         def nan_to_zero(tensor):
             return torch.where(torch.isnan(tensor), torch.zeros_like(tensor), tensor)
-        self.received_params = [nan_to_zero(client.delta_W) for client in self.sampled_clients]
-        self.received_C = [nan_to_zero(client.delta_C) for client in self.sampled_clients]
+
+        self.received_params = [
+            nan_to_zero(client.delta_W) for client in self.sampled_clients
+        ]
+        self.received_C = [
+            nan_to_zero(client.delta_C) for client in self.sampled_clients
+        ]
 
     def aggregate(self):
-        assert (len(self.sampled_clients) > 0)
+        assert len(self.sampled_clients) > 0
         delta_C_avg = sum(self.received_C) / len(self.received_C)
         delta_W_avg = sum(self.received_params) / len(self.received_params)
 

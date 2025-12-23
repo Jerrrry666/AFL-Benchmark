@@ -6,8 +6,8 @@ from utils.run_utils import time_record
 
 
 def add_args(parser):
-    parser.add_argument('--tau', type=float, default=0.5, help="Temperature")
-    parser.add_argument('--mu', type=float, default=1, help="Mu")
+    parser.add_argument("--tau", type=float, default=0.5, help="Temperature")
+    parser.add_argument("--mu", type=float, default=1, help="Mu")
     return parser.parse_args()
 
 
@@ -23,14 +23,16 @@ class Client(BaseClient):
         self.train()
 
     def train(self):
-        gm = self.model2shared_tensor() # this is only param.data, without grad
+        gm = self.model2shared_tensor()  # this is only param.data, without grad
         total_loss = 0.0
         batch_loss = []
         for epoch in range(self.epoch):
             for idx, data in enumerate(self.loader_train):
                 X, y = self.unarchive(data)
 
-                pm = torch.cat([param.view(-1) for param in self.model.parameters()], dim=0)
+                pm = torch.cat(
+                    [param.view(-1) for param in self.model.parameters()], dim=0
+                )
 
                 if self.prev_m is not None:
                     # output for global model
@@ -53,7 +55,10 @@ class Client(BaseClient):
                 if self.prev_m is not None:
                     dis_global = F.cosine_similarity(rep, rep_g) / self.tau
                     dis_prev = F.cosine_similarity(rep, rep_prev) / self.tau
-                    loss_con = - torch.log(torch.exp(dis_global) / (torch.exp(dis_global) + torch.exp(dis_prev)))
+                    loss_con = -torch.log(
+                        torch.exp(dis_global)
+                        / (torch.exp(dis_global) + torch.exp(dis_prev))
+                    )
                     loss += self.mu * torch.mean(loss_con)
 
                 self.optim.zero_grad()
@@ -61,9 +66,10 @@ class Client(BaseClient):
                 self.optim.step()
 
                 total_loss += loss.item()
-        self.metric['loss'] = total_loss / len(self.loader_train)
+        self.metric["loss"] = total_loss / len(self.loader_train)
         self.prev_m = self.model2shared_tensor()
         del gm
+
 
 class Server(BaseServer):
     def run(self):

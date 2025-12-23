@@ -8,8 +8,8 @@ from dataset.utils.dataset_utils import save_file, split_data
 
 random.seed(0)
 
-cluster_set = ['hsh_', 'mmw_']
-class_set = ['_walk', '_up', '_down']
+cluster_set = ["hsh_", "mmw_"]
+class_set = ["_walk", "_up", "_down"]
 label = [0, 1, 2]
 
 NUM_OF_CLASS = 3
@@ -33,9 +33,11 @@ def load_data(user_id):
     coll_label = []
 
     for class_id in range(NUM_OF_CLASS):
-        read_path = Path('.') / f'{cluster_des}{intra_user_id}{class_set[class_id]}_nor.txt'
+        read_path = (
+            Path(".") / f"{cluster_des}{intra_user_id}{class_set[class_id]}_nor.txt"
+        )
 
-        temp_original_data = np.loadtxt(str(read_path), delimiter=',')
+        temp_original_data = np.loadtxt(str(read_path), delimiter=",")
         temp_coll = temp_original_data.reshape(-1, DIMENSION_OF_FEATURE)
         count_img = temp_coll.shape[0]
         temp_label = class_id * np.ones(count_img)
@@ -61,6 +63,6 @@ def generate_dataset(cfg):
 
 
 if __name__ == "__main__":
-    with Path('config.yaml').open('r') as f:
+    with Path("config.yaml").open("r") as f:
         config = yaml.load(f.read(), Loader=yaml.Loader)
     generate_dataset(config)

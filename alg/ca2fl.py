@@ -5,15 +5,15 @@ from utils.run_utils import time_record
 
 
 def add_args(parser):
-    parser.add_argument('--M', type=int, default=10, help='buffer size M for CA2FL')
-    parser.add_argument('--eta', type=float, default=0.01, help='gloal lr')
+    parser.add_argument("--M", type=int, default=10, help="buffer size M for CA2FL")
+    parser.add_argument("--eta", type=float, default=0.01, help="gloal lr")
     return parser.parse_args()
 
 
 class Client(AsyncBaseClient):
     def __init__(self, id, args):
         super().__init__(id, args)
-        
+
     @time_record
     def run(self):
         w_last = self.model2shared_tensor()
@@ -26,7 +26,9 @@ class Server(AsyncBaseServer):
         super().__init__(args, clients)
         self.buffer = []
         self.buffer_clients = []
-        self.h_cache = [torch.zeros_like(self.model2shared_tensor()) for _ in self.clients]
+        self.h_cache = [
+            torch.zeros_like(self.model2shared_tensor()) for _ in self.clients
+        ]
         self.momentum_cache = torch.zeros_like(self.model2shared_tensor())
         self.M = args.M
         self.eta = args.eta
@@ -46,8 +48,10 @@ class Server(AsyncBaseServer):
 
         if len(self.buffer) == self.M:
             h_t = torch.mean(torch.stack(self.h_cache), dim=0)
-            calibration = sum(delta - self.h_cache[cid] for delta, cid in zip(self.buffer, self.buffer_clients)) / len(
-                self.buffer)
+            calibration = sum(
+                delta - self.h_cache[cid]
+                for delta, cid in zip(self.buffer, self.buffer_clients)
+            ) / len(self.buffer)
             v_t = h_t + calibration
 
             t_g = self.model2shared_tensor()

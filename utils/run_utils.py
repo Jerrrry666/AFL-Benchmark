@@ -20,9 +20,9 @@ def time_record(func):
         comm_time = self.comm_bytes() * 8 / (1024 * 1024) / self.bandwidth
         self.training_time += comm_time * 2
 
-        dropout = system_config()['dropout']
-        if random.random() < dropout['drop_prob']:
-            self.training_time += (random.random() * dropout['drop_latency'])
+        dropout = system_config()["dropout"]
+        if random.random() < dropout["drop_prob"]:
+            self.training_time += random.random() * dropout["drop_latency"]
         return result
 
     return wrapper
@@ -41,13 +41,15 @@ class OnDevice:
         # Outside this block, the model is automatically moved back to the 'cpu'
     """
 
-    def __init__(self,
-                 model: list[torch.nn.Module] | torch.nn.Module,
-                 device: torch.device,
-                 model_in_cpu_flag: bool = False):
+    def __init__(
+        self,
+        model: list[torch.nn.Module] | torch.nn.Module,
+        device: torch.device,
+        model_in_cpu_flag: bool = False,
+    ):
         self.model = model
         self.target_device = device
-        self.original_device = 'cpu' if model_in_cpu_flag else device
+        self.original_device = "cpu" if model_in_cpu_flag else device
 
     def __enter__(self):
         """When entering the with block, move the model to the target device."""
@@ -68,7 +70,7 @@ class OnDevice:
 
 
 class OnDeviceRun:
-    def __init__(self, client, device: int | str | torch.device, mode: str = 'train'):
+    def __init__(self, client, device: int | str | torch.device, mode: str = "train"):
         self.client = client
         self.original_device = client.device
         self.target_device = device
@@ -79,8 +81,8 @@ class OnDeviceRun:
         if self.original_device != self.target_device:
             self.client.device = self.target_device
             self.client.model.to(self.target_device)
-            if self.mode == 'train':
-                self._optim_to(getattr(self.client, 'optim', None), self.target_device)
+            if self.mode == "train":
+                self._optim_to(getattr(self.client, "optim", None), self.target_device)
                 # self._scaler_to(getattr(self.client, 'scaler', None), self.device)
         return self.client
 
@@ -91,7 +93,7 @@ class OnDeviceRun:
             self.client.model.to(self.original_device)
             # if self.mode == 'train':
             #     self._optim_to(getattr(self.client, 'optim', None), self.original_device)
-                # self._scaler_to(getattr(self.client, 'scaler', None), self.original_device)
+            # self._scaler_to(getattr(self.client, 'scaler', None), self.original_device)
 
     @staticmethod
     def _optim_to(optim: torch.optim.Optimizer | None, device: str | torch.device):
@@ -115,7 +117,9 @@ class OnDeviceRun:
                 if isinstance(t, torch.Tensor):
                     setattr(scaler, attr, t.to(device, copy=False))
         # found_inf bookkeeping can be a dict[device]->Tensor
-        if hasattr(scaler, "_found_inf_per_device") and isinstance(scaler._found_inf_per_device, dict):
+        if hasattr(scaler, "_found_inf_per_device") and isinstance(
+            scaler._found_inf_per_device, dict
+        ):
             for d, t in scaler._found_inf_per_device.items():
                 if isinstance(t, torch.Tensor):
                     scaler._found_inf_per_device[d] = t.to(device, copy=False)

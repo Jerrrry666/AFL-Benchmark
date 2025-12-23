@@ -11,25 +11,38 @@ class Multimodal_Resnet18(nn.Module):
         self.class_num = args.class_num
         self.feature_dim = 512
 
-        if 'cremad' in args.dataset:
-            self.encoders = nn.ModuleList([ImgEncoderResnet18(),
-                                           AudioEncoderResnet18(), ])
+        if "cremad" in args.dataset:
+            self.encoders = nn.ModuleList(
+                [
+                    ImgEncoderResnet18(),
+                    AudioEncoderResnet18(),
+                ]
+            )
         else:
-            raise ValueError(f"Unsupported dataset {args.dataset} for Multimodal_Resnet18.")
+            raise ValueError(
+                f"Unsupported dataset {args.dataset} for Multimodal_Resnet18."
+            )
 
         self.modality_num = len(self.encoders)
 
-        if self.fusion_mode == 'concat':
-            self.head = ConcatHead(self.class_num, self.modality_num, feature_dim=self.feature_dim)
-        elif self.fusion_mode == 'latesum':
-            self.head = LateSumHead(self.class_num, self.modality_num, feature_dim=self.feature_dim)
+        if self.fusion_mode == "concat":
+            self.head = ConcatHead(
+                self.class_num, self.modality_num, feature_dim=self.feature_dim
+            )
+        elif self.fusion_mode == "latesum":
+            self.head = LateSumHead(
+                self.class_num, self.modality_num, feature_dim=self.feature_dim
+            )
 
     def forward(self, x_list: list[torch.Tensor]):
         if len(x_list) != self.modality_num:
             raise ValueError(
-                    f"Multimodal inputs 'x' list length ({len(x_list)}) must match modality number ({self.modality_num}).")
+                f"Multimodal inputs 'x' list length ({len(x_list)}) must match modality number ({self.modality_num})."
+            )
         if all(x is None for x in x_list):
-            raise ValueError("Multimodal inputs 'x' can not be all of 'None'. At least one modality must be provided.")
+            raise ValueError(
+                "Multimodal inputs 'x' can not be all of 'None'. At least one modality must be provided."
+            )
 
         features = [encoder(x) for x, encoder in zip(x_list, self.encoders)]
         x = self.head(features)
@@ -40,6 +53,7 @@ class Multimodal_Resnet18(nn.Module):
 # ====== base modules ======
 # ==========================
 
+
 class ImgEncoderResnet18(nn.Module):
     def __init__(self):
         super().__init__()
@@ -48,7 +62,8 @@ class ImgEncoderResnet18(nn.Module):
         self.resnet.fc = nn.Identity()
 
     def forward(self, x):
-        if x is None: return None
+        if x is None:
+            return None
         x = [self.resnet(_x) for _x in torch.chunk(x, 3, dim=2)]
         x = torch.stack(x).mean(dim=0, keepdim=False)
 
@@ -59,12 +74,15 @@ class AudioEncoderResnet18(nn.Module):
     def __init__(self):
         super().__init__()
         self.resnet = models.resnet18(weights=None, num_classes=10)
-        self.resnet.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.resnet.conv1 = nn.Conv2d(
+            1, 64, kernel_size=7, stride=2, padding=3, bias=False
+        )
         self.in_f = self.resnet.fc.in_features
         self.resnet.fc = nn.Identity()
 
     def forward(self, x):  # Add channel dimension
-        if x is None: return None
+        if x is None:
+            return None
         x = self.resnet(x)
         return x
 
@@ -82,10 +100,12 @@ class Head(nn.Module):
 class LateSumHead(Head):
     def __init__(self, class_num, modality_num, feature_dim):
         super().__init__(class_num, feature_dim)
-        self.classifier = nn.ModuleList([
-            nn.Linear(feature_dim, class_num),
-            nn.Linear(feature_dim, class_num),
-        ])
+        self.classifier = nn.ModuleList(
+            [
+                nn.Linear(feature_dim, class_num),
+                nn.Linear(feature_dim, class_num),
+            ]
+        )
         self.modality_num = modality_num
 
     def forward(self, x_list: list[torch.Tensor]):

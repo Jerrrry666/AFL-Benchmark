@@ -5,8 +5,12 @@ from utils.run_utils import time_record
 
 
 def add_args(parser):
-    parser.add_argument('--beta', type=float, default=0.5, help='staleness penalty factor')
-    parser.add_argument('--b', type=float, default=10, help='determine whether to aggregate')
+    parser.add_argument(
+        "--beta", type=float, default=0.5, help="staleness penalty factor"
+    )
+    parser.add_argument(
+        "--b", type=float, default=10, help="determine whether to aggregate"
+    )
     return parser.parse_args()
 
 
@@ -33,13 +37,15 @@ class Client(AsyncBaseClient):
                 total_loss += loss.item()
                 data_quality += loss.item() ** 2
 
-        self.metric['loss'] = total_loss / len(self.loader_train)
-        self.metric['data_quality'] = data_quality / len(self.loader_train)
+        self.metric["loss"] = total_loss / len(self.loader_train)
+        self.metric["data_quality"] = data_quality / len(self.loader_train)
 
     @time_record
     def run(self):
         self.train()
-        self.data_quality = len(self.dataset_train) * np.sqrt(self.metric['data_quality'])
+        self.data_quality = len(self.dataset_train) * np.sqrt(
+            self.metric["data_quality"]
+        )
 
 
 class Server(AsyncBaseServer):
@@ -56,8 +62,6 @@ class Server(AsyncBaseServer):
 
         self.buffer = []
 
-
-        
     def run(self):
         self.sample()
         self.downlink()
@@ -65,7 +69,7 @@ class Server(AsyncBaseServer):
         self.uplink()
         self.aggregate()
         self.update_status()
-    
+
     def sample(self):
         active_num = len([c for c in self.clients if c.status == Status.ACTIVE])
         if active_num >= self.MAX_CONCURRENCY:
@@ -76,25 +80,29 @@ class Server(AsyncBaseServer):
         for c in idle_clients:
             # Use get_staleness method to calculate current staleness
             current_staleness = self.get_staleness(c)
-            avg_staleness = sum(self.staleness_history[c.id]) / len(self.staleness_history[c.id]) \
-                if len(self.staleness_history[c.id]) > 0 else 0
+            avg_staleness = (
+                sum(self.staleness_history[c.id]) / len(self.staleness_history[c.id])
+                if len(self.staleness_history[c.id]) > 0
+                else 0
+            )
             # Combine current staleness with historical average for sampling decision
             combined_staleness = (current_staleness + avg_staleness) / 2
             c.u = c.data_quality / pow(1 + combined_staleness, self.beta)
-        self.sampled_clients = sorted(idle_clients, key=lambda c: c.u, reverse=True)[:self.MAX_CONCURRENCY - active_num]
+        self.sampled_clients = sorted(idle_clients, key=lambda c: c.u, reverse=True)[
+            : self.MAX_CONCURRENCY - active_num
+        ]
 
         # No need to reset staleness here - it will be calculated on-demand
 
-    
     def aggregate(self):
         self.buffer.append(self.cur_client.model2shared_tensor())
-        
+
         slowest_time = max(self.profiled_latency)
-        current_b = max(5, min(self.b, 15))  
-        
-        AGGR = (self.wall_clock_time - self.last_aggr_time > slowest_time / current_b)
-        
-        if AGGR and len(self.buffer) >= 3: 
+        current_b = max(5, min(self.b, 15))
+
+        AGGR = self.wall_clock_time - self.last_aggr_time > slowest_time / current_b
+
+        if AGGR and len(self.buffer) >= 3:
             self.last_aggr_time = self.wall_clock_time
             self.AGGR = True
             self.shared_tensor2model(sum(self.buffer) / len(self.buffer))

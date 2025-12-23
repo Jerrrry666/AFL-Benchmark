@@ -15,13 +15,14 @@ from utils.dataset_utils import check, save_file, separate_data, split_data
 random.seed(1)
 np.random.seed(1)
 
-EMOTION_LABELS = ['NEU', 'HAP', 'SAD', 'FEA', 'DIS', 'ANG']
+EMOTION_LABELS = ["NEU", "HAP", "SAD", "FEA", "DIS", "ANG"]
 
 
 def generate_dataset(cfg):
-    dir_path = Path(cfg['dir_path'] + '-' + f'{cfg["client_num"]}')
+    dir_path = Path(cfg["dir_path"] + "-" + f'{cfg["client_num"]}')
     dir_path.mkdir(parents=True, exist_ok=True)
-    if check(cfg): return
+    if check(cfg):
+        return
 
     raw = dir_path
     if not dir_path.exists():
@@ -29,22 +30,26 @@ def generate_dataset(cfg):
 
     X, y = [], []
 
-    img_transforms_cremad = v2.Compose([
-        v2.ToImage(),
-        v2.Resize((672, 224)),
-        v2.ToDtype(torch.float32, scale=True),
-        v2.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-    ])
+    img_transforms_cremad = v2.Compose(
+        [
+            v2.ToImage(),
+            v2.Resize((672, 224)),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        ]
+    )
 
     cremad_dataset = CREMAD_Dataset(root=raw, transform=img_transforms_cremad)
 
-    dataloader = torch.utils.data.DataLoader(cremad_dataset, batch_size=1, shuffle=False)
+    dataloader = torch.utils.data.DataLoader(
+        cremad_dataset, batch_size=1, shuffle=False
+    )
 
     for image, audio, label in tqdm(dataloader, total=len(dataloader)):
         X.append([image.squeeze(0).numpy(), audio.squeeze(0).numpy()])
         y.extend(label)
 
-    cfg['class_num'] = len(set(y))
+    cfg["class_num"] = len(set(y))
     X = np.array(X, dtype=object)
     y = torch.tensor(y).numpy()
     X, y, statistic = separate_data((X, y), cfg)
@@ -53,7 +58,9 @@ def generate_dataset(cfg):
 
 
 class CREMAD_Dataset(Dataset):
-    def __init__(self, root, dataidxs=None, train=True, transform=None, target_transform=None):
+    def __init__(
+        self, root, dataidxs=None, train=True, transform=None, target_transform=None
+    ):
         self.root = Path(root)
         self.dataidxs = dataidxs
         self.train = train
@@ -61,9 +68,11 @@ class CREMAD_Dataset(Dataset):
         self.target_transform = target_transform
         self.sr = 16000
 
-        self.video_dir = self.root / 'VideoFlash'
-        self.audio_dir = self.root / 'AudioWAV'
-        self.full_data = sorted([f.name for f in self.video_dir.iterdir() if f.is_file()])
+        self.video_dir = self.root / "VideoFlash"
+        self.audio_dir = self.root / "AudioWAV"
+        self.full_data = sorted(
+            [f.name for f in self.video_dir.iterdir() if f.is_file()]
+        )
 
     def __len__(self):
         return len(self.full_data)
@@ -71,10 +80,10 @@ class CREMAD_Dataset(Dataset):
     def __getitem__(self, index):
         vid_path = self.video_dir / self.full_data[index]
         filename = vid_path.stem
-        audio_path = self.audio_dir / f'{filename}.wav'
+        audio_path = self.audio_dir / f"{filename}.wav"
 
         # === get label from filename ===
-        label = EMOTION_LABELS.index(filename.split('_')[2])
+        label = EMOTION_LABELS.index(filename.split("_")[2])
         if self.target_transform:
             label = self.target_transform(label)
 
@@ -99,11 +108,13 @@ class CREMAD_Dataset(Dataset):
 
         # === extract audio feature ===
         samples, rate = librosa.load(str(audio_path), sr=self.sr)
-        resamples = np.tile(samples, 3)[:self.sr * 3]
-        resamples[resamples > 1.] = 1.
-        resamples[resamples < -1.] = -1.
+        resamples = np.tile(samples, 3)[: self.sr * 3]
+        resamples[resamples > 1.0] = 1.0
+        resamples[resamples < -1.0] = -1.0
 
-        frequencies, times, spectrogram = signal.spectrogram(resamples, rate, nperseg=512, noverlap=353)
+        frequencies, times, spectrogram = signal.spectrogram(
+            resamples, rate, nperseg=512, noverlap=353
+        )
         spectrogram = np.log(np.abs(spectrogram) + 1e-7)
         mean = np.mean(spectrogram)
         std = np.std(spectrogram)
@@ -115,7 +126,9 @@ class CREMAD_Dataset(Dataset):
 
 
 if __name__ == "__main__":
-    with Path('config.yaml').open('r') as f:
+    with Path("config.yaml").open("r") as f:
         config = yaml.load(f.read(), Loader=yaml.Loader)
-    assert config['dir_path'].lower() == 'crema-d', 'Dataset name does not match saving dir_path (dataset/config.yaml) !'
+    assert (
+        config["dir_path"].lower() == "crema-d"
+    ), "Dataset name does not match saving dir_path (dataset/config.yaml) !"
     generate_dataset(config)

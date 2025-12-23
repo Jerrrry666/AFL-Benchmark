@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class CNN_CIFAR(nn.Module):
     def __init__(self, class_num):
         super(CNN_CIFAR, self).__init__()
@@ -25,8 +26,10 @@ class CNN_CIFAR(nn.Module):
             return x, feat
         return x
 
+
 def cnn_cifar10(args):
     return CNN_CIFAR(class_num=args.class_num)
+
 
 def cnn_cifar100(args):
     return CNN_CIFAR(class_num=args.class_num)

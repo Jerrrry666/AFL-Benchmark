@@ -7,8 +7,8 @@ from utils.run_utils import time_record
 
 
 def add_args(parser):
-    parser.add_argument('--eps_1', type=float, default=0.4)
-    parser.add_argument('--eps_2', type=float, default=0.7)
+    parser.add_argument("--eps_1", type=float, default=0.4)
+    parser.add_argument("--eps_2", type=float, default=0.7)
     return parser.parse_args()
 
 
@@ -22,6 +22,7 @@ class Client(ClusterClient):
         t_old = self.model2shared_tensor()
         self.train()
         self.dW = self.model2shared_tensor() - t_old
+
 
 class Server(ClusterServer):
     def __init__(self, id, args, clients):
@@ -47,12 +48,11 @@ class Server(ClusterServer):
             max_norm = max_update_norm(clients)
             mean_norm = mean_update_norm(clients)
 
-
             if mean_norm < self.eps_1 and max_norm > self.eps_2 and len(clients) > 2:
                 similarity_in_cluster = self.sims[client_ids][:, client_ids]
-                cluster_res = AgglomerativeClustering(n_clusters=2,
-                                                      affinity="precomputed",
-                                                      linkage="complete").fit(-similarity_in_cluster)
+                cluster_res = AgglomerativeClustering(
+                    n_clusters=2, affinity="precomputed", linkage="complete"
+                ).fit(-similarity_in_cluster)
 
                 # c1 is kept for the original cluster
                 c1 = np.argwhere(cluster_res.labels_ == 0).flatten()
@@ -61,24 +61,25 @@ class Server(ClusterServer):
 
                 for c_id in c2:
                     self.clients[c_id].cluster_id = len(self.cluster_list)
-                self.cluster_list.append(
-                    Cluster(len(self.cluster_list), cluster.model)
-                )
-
+                self.cluster_list.append(Cluster(len(self.cluster_list), cluster.model))
 
     def update_sims(self):
         for c_i in self.sampled_clients:
             for c_j in self.clients:
                 idx_i = c_i.id
                 idx_j = c_j.id
-                self.sims[idx_i, idx_j] = self.sims[idx_j, idx_i] = torch.nn.functional.cosine_similarity(
-                    self.clients[idx_i].dW,
-                    self.clients[idx_j].dW,
-                    dim=0)
+                self.sims[idx_i, idx_j] = self.sims[idx_j, idx_i] = (
+                    torch.nn.functional.cosine_similarity(
+                        self.clients[idx_i].dW, self.clients[idx_j].dW, dim=0
+                    )
+                )
 
 
 def max_update_norm(clients):
     return np.max([torch.norm(client.dW).item() for client in clients])
 
+
 def mean_update_norm(clients):
-    return torch.norm(torch.mean(torch.stack([client.dW for client in clients]), dim=0)).item()
+    return torch.norm(
+        torch.mean(torch.stack([client.dW for client in clients]), dim=0)
+    ).item()

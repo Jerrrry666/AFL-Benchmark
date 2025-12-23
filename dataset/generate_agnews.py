@@ -12,28 +12,30 @@ np.random.seed(1)
 max_len = 200
 max_tokens = 32000
 
+
 def generate_dataset(cfg):
-    dir_path = Path(cfg['dir_path'] + '-' + f'{cfg["client_num"]}')
+    dir_path = Path(cfg["dir_path"] + "-" + f'{cfg["client_num"]}')
     dir_path.mkdir(parents=True, exist_ok=True)
 
-    if check(cfg): return
+    if check(cfg):
+        return
 
-    train_pat = dir_path / 'rawdata/train.csv'
-    test_pat = dir_path / 'rawdata/test.csv'
+    train_pat = dir_path / "rawdata/train.csv"
+    test_pat = dir_path / "rawdata/test.csv"
 
     train_data = pd.read_csv(train_pat)
     test_data = pd.read_csv(test_pat)
 
-    train_text = train_data['Title'].to_list()
-    train_label = train_data['Class Index'].to_list()
-    test_text = test_data['Title'].to_list()
-    test_label = test_data['Class Index'].to_list()
+    train_text = train_data["Title"].to_list()
+    train_label = train_data["Class Index"].to_list()
+    test_text = test_data["Title"].to_list()
+    test_label = test_data["Class Index"].to_list()
 
     dataset_text = train_text + test_text
     dataset_label = train_label + test_label
 
     vocab, text_list = tokenizer(dataset_text, max_len, max_tokens)
-    label_list = [int(l)-1 for l in dataset_label]
+    label_list = [int(l) - 1 for l in dataset_label]
 
     text_lens = [len(text) for text in text_list]
     text_list = [(text, l) for text, l in zip(text_list, text_lens)]
@@ -41,7 +43,7 @@ def generate_dataset(cfg):
     X = np.array(text_list, dtype=object)
     y = np.array(label_list)
 
-    cfg['class_num'] = len(set(y))
+    cfg["class_num"] = len(set(y))
 
     X, y, statistic = separate_data((X, y), cfg)
     train_data, test_data = split_data(X, y, cfg)
@@ -49,7 +51,9 @@ def generate_dataset(cfg):
 
 
 if __name__ == "__main__":
-    with Path('config.yaml').open('r') as f:
+    with Path("config.yaml").open("r") as f:
         config = yaml.load(f.read(), Loader=yaml.Loader)
-    assert config['dir_path'].lower() == 'agnews', 'Dataset name does not match saving dir_path (dataset/config.yaml) !'
+    assert (
+        config["dir_path"].lower() == "agnews"
+    ), "Dataset name does not match saving dir_path (dataset/config.yaml) !"
     generate_dataset(config)

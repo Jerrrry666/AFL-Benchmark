@@ -11,13 +11,13 @@ from tqdm import tqdm
 
 
 def check(cfg):
-    dir_path = Path(cfg['dir_path'] + '-' + f'{cfg["client_num"]}')
+    dir_path = Path(cfg["dir_path"] + "-" + f'{cfg["client_num"]}')
     config_path = dir_path / "config.yaml"
     train_path = dir_path / "train"
     test_path = dir_path / "test"
 
     if config_path.is_file():
-        with config_path.open('r') as f:
+        with config_path.open("r") as f:
             config = yaml.load(f.read(), Loader=yaml.Loader)
         if config == cfg:
             print("\nDataset already generated.\n")
@@ -44,36 +44,40 @@ def dataset_to_numpy(ds):
 
 
 def separate_data(data, cfg):
-    num_clients = cfg['client_num']
-    partition = cfg['partition']
-    class_num = cfg['class_num']
-    batch_size = cfg['batch_size']
-    train_ratio = cfg['train_ratio']
-    class_per_client = cfg['class_per_client']
-    iid_proportion = cfg['iid_proportion']
-    group_num = cfg['group_num']
+    num_clients = cfg["client_num"]
+    partition = cfg["partition"]
+    class_num = cfg["class_num"]
+    batch_size = cfg["batch_size"]
+    train_ratio = cfg["train_ratio"]
+    class_per_client = cfg["class_per_client"]
+    iid_proportion = cfg["iid_proportion"]
+    group_num = cfg["group_num"]
 
     X = [[] for _ in range(num_clients)]
     y = [[] for _ in range(num_clients)]
     statistic = [[] for _ in range(num_clients)]
 
     dataset_content, dataset_label = data
-    least_samples = int(min(batch_size / (1 - train_ratio), len(dataset_label) / num_clients / 2))
+    least_samples = int(
+        min(batch_size / (1 - train_ratio), len(dataset_label) / num_clients / 2)
+    )
 
     dataidx_map = {}
 
-    if partition == 'iid':
-        partition = 'pat'
+    if partition == "iid":
+        partition = "pat"
         class_per_client = class_num
 
-    if partition == 'pat':
+    if partition == "pat":
         idxs = np.array(range(len(dataset_label)))
         idx_for_each_class = [idxs[dataset_label == i] for i in range(class_num)]
         class_num_per_client = [class_per_client for _ in range(num_clients)]
 
         for i, class_idxs in enumerate(idx_for_each_class):
             selected_clients = [c for c, n in enumerate(class_num_per_client) if n > 0]
-            selected_clients = selected_clients[:int(np.ceil(num_clients / class_num * class_per_client))]
+            selected_clients = selected_clients[
+                : int(np.ceil(num_clients / class_num * class_per_client))
+            ]
 
             num_total = len(class_idxs)
             num_clients_sel = len(selected_clients)
@@ -83,7 +87,9 @@ def separate_data(data, cfg):
             idx = 0
             for client, size in zip(selected_clients, sizes):
                 dataidx_map.setdefault(client, np.array([], dtype=int))
-                dataidx_map[client] = np.concatenate([dataidx_map[client], class_idxs[idx:idx + size]])
+                dataidx_map[client] = np.concatenate(
+                    [dataidx_map[client], class_idxs[idx : idx + size]]
+                )
                 class_num_per_client[client] -= 1
                 idx += size
 
@@ -94,14 +100,16 @@ def separate_data(data, cfg):
 
         while min_size < least_samples:
             if try_cnt > 1:
-                print(f"Try {try_cnt}: Some client has fewer than {least_samples} samples. Retrying...")
+                print(
+                    f"Try {try_cnt}: Some client has fewer than {least_samples} samples. Retrying..."
+                )
 
             idx_batch = [[] for _ in range(num_clients)]
             for k in range(class_num):
                 idx_k = np.where(dataset_label == k)[0]
                 np.random.shuffle(idx_k)
 
-                proportions = np.random.dirichlet([cfg['alpha']] * num_clients)
+                proportions = np.random.dirichlet([cfg["alpha"]] * num_clients)
                 mask = np.array([len(b) < N / num_clients for b in idx_batch])
                 proportions = proportions * mask
                 proportions = proportions / proportions.sum()
@@ -115,7 +123,7 @@ def separate_data(data, cfg):
         for j in range(num_clients):
             dataidx_map[j] = idx_batch[j]
 
-    elif partition == 'group':
+    elif partition == "group":
         idxs = np.arange(len(dataset_label))
         idx_for_each_class = [idxs[dataset_label == i] for i in range(class_num)]
 
@@ -128,12 +136,16 @@ def separate_data(data, cfg):
 
             base = num_all // num_clients_sel
             num_samples = [base] * num_clients_sel
-            num_samples[random.randint(0, num_clients_sel - 1)] += num_all - sum(num_samples)
+            num_samples[random.randint(0, num_clients_sel - 1)] += num_all - sum(
+                num_samples
+            )
 
             idx = 0
             for client, n in zip(selected_clients, num_samples):
                 dataidx_map.setdefault(client, np.array([], dtype=int))
-                dataidx_map[client] = np.concatenate([dataidx_map[client], idx_class[idx:idx + n]])
+                dataidx_map[client] = np.concatenate(
+                    [dataidx_map[client], idx_class[idx : idx + n]]
+                )
                 idx += n
 
             idx_for_each_class[i] = idx_class[idx:]
@@ -162,20 +174,26 @@ def separate_data(data, cfg):
 
                     base = num_all // num_clients_sel
                     num_samples = [base] * num_clients_sel
-                    num_samples[random.randint(0, num_clients_sel - 1)] += num_all - sum(num_samples)
+                    num_samples[
+                        random.randint(0, num_clients_sel - 1)
+                    ] += num_all - sum(num_samples)
 
                     idx = 0
                     for client, n in zip(client_group, num_samples):
                         dataidx_map.setdefault(client, np.array([], dtype=int))
-                        dataidx_map[client] = np.concatenate([dataidx_map[client], idx_class[idx:idx + n]])
+                        dataidx_map[client] = np.concatenate(
+                            [dataidx_map[client], idx_class[idx : idx + n]]
+                        )
                         idx += n
 
-    elif partition == 'dual':
+    elif partition == "dual":
         # For dual distribution (DomainNet style), we need features data
         # This requires dataset-specific handling in individual generate_*.py files
         # We'll raise an informative error here
-        raise NotImplementedError("Dual distribution partition requires dataset-specific implementation. "
-                                  "Please use the dual distribution utils directly in dataset generators.")
+        raise NotImplementedError(
+            "Dual distribution partition requires dataset-specific implementation. "
+            "Please use the dual distribution utils directly in dataset generators."
+        )
     else:
         raise NotImplementedError
 
@@ -191,7 +209,10 @@ def separate_data(data, cfg):
     del data
 
     for client in range(num_clients):
-        print(f"Client {client}\t Size of data: {len(X[client])}\t Labels: ", np.unique(y[client]))
+        print(
+            f"Client {client}\t Size of data: {len(X[client])}\t Labels: ",
+            np.unique(y[client]),
+        )
         print(f"\t\t Samples of labels: ", [i for i in statistic[client]])
         print("-" * 50)
 
@@ -199,14 +220,16 @@ def separate_data(data, cfg):
 
 
 def split_data(X, y, cfg):
-    train_ratio = cfg['train_ratio']
+    train_ratio = cfg["train_ratio"]
     train_data, test_data = [], []
     train_counts, test_counts = [], []
 
     for x_i, y_i in zip(X, y):
-        x_train, x_test, y_train, y_test = train_test_split(x_i, y_i, train_size=train_ratio, shuffle=True)
-        train_data.append({'x': x_train, 'y': y_train})
-        test_data.append({'x': x_test, 'y': y_test})
+        x_train, x_test, y_train, y_test = train_test_split(
+            x_i, y_i, train_size=train_ratio, shuffle=True
+        )
+        train_data.append({"x": x_train, "y": y_train})
+        test_data.append({"x": x_test, "y": y_test})
         train_counts.append(len(y_train))
         test_counts.append(len(y_test))
 
@@ -219,11 +242,12 @@ def split_data(X, y, cfg):
 
 
 def save_file(train_data, test_data, config):
-    if config['partition'] == 'dual':
+    if config["partition"] == "dual":
         dir_path = Path(
-            f'{config["dir_path"]}-{config["client_num"]}-L{config["label_partition"]}-F{config["feature_partition"]}')
+            f'{config["dir_path"]}-{config["client_num"]}-L{config["label_partition"]}-F{config["feature_partition"]}'
+        )
     else:
-        dir_path = Path(config['dir_path'] + '-' + f'{config["client_num"]}')
+        dir_path = Path(config["dir_path"] + "-" + f'{config["client_num"]}')
     config_path = dir_path / "config.yaml"
     train_path = dir_path / "train"
     test_path = dir_path / "test"
@@ -237,7 +261,7 @@ def save_file(train_data, test_data, config):
         # np.savez(test_path / f"{idx}.npz", data=test_data[idx])
         np.savez_compressed(train_path / f"{idx}.npz", data=train_data[idx])
         np.savez_compressed(test_path / f"{idx}.npz", data=test_data[idx])
-    with config_path.open('w') as f:
+    with config_path.open("w") as f:
         yaml.dump(config, f)
 
     print("Finish generating dataset.\n")

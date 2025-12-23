@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class MLP(nn.Module):
     def __init__(self, class_num):
         super(MLP, self).__init__()
@@ -25,6 +26,7 @@ class MLP(nn.Module):
             return x, feat
         return x
 
+
 class MLP_HAR(nn.Module):
     def __init__(self, class_num, dim_in=900):
         super(MLP_HAR, self).__init__()
@@ -42,6 +44,7 @@ class MLP_HAR(nn.Module):
 
 def mlp_harbox(args):
     return MLP_HAR(class_num=args.class_num)
+
 
 def mlp_mnist(args):
     return MLP(class_num=args.class_num)

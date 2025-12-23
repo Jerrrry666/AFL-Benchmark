@@ -10,7 +10,7 @@ class Client(AsyncBaseClient):
     def __init__(self, id, args):
         super().__init__(id, args)
         self.p = len(self.dataset_train)
-        
+
     @time_record
     def run(self):
         self.train()
@@ -21,7 +21,9 @@ class Server(AsyncBaseServer):
         super().__init__(args, clients)
         self.v = 0
         self.alpha_sum = [0 for _ in self.clients]
-        self.data_ratios = [c.data_volume / sum(c.data_volume for c in clients) for c in clients]
+        self.data_ratios = [
+            c.data_volume / sum(c.data_volume for c in clients) for c in clients
+        ]
 
     def run(self):
         self.sample()
@@ -37,7 +39,10 @@ class Server(AsyncBaseServer):
         alpha_sum_i = self.alpha_sum[client_id]
         alpha_i = min(1, d_i / len(self.clients) * (self.v + 1) - alpha_sum_i)
 
-        t_aggr = alpha_i * self.cur_client.model2shared_tensor() + (1 - alpha_i) * self.model2shared_tensor()
+        t_aggr = (
+            alpha_i * self.cur_client.model2shared_tensor()
+            + (1 - alpha_i) * self.model2shared_tensor()
+        )
         self.shared_tensor2model(t_aggr)
 
         self.v += 1
