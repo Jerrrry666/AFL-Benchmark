@@ -135,17 +135,6 @@ class BaseClient:
             self.scheduler.last_epoch = self.task_round - 1
             self.scheduler.step()
 
-    # def model2tensor(self, params=None):
-    #     alg_module = importlib.import_module(f'alg.{self.args.alg}')
-    #     p_keys = getattr(alg_module, 'p_keys') if hasattr(alg_module, 'p_keys') else []
-    #     p_params = [any(key == name.split('.')[0] for key in p_keys)
-    #                 for name, _ in self.model.named_parameters()]
-    #     selected_params = params if params is not None else [not is_p for is_p in p_params]
-    #
-    #     return torch.cat([param.detach().view(-1)
-    #                       for selected, param in zip(selected_params, self.model.parameters())
-    #                       if selected is True], dim=0)
-
     @staticmethod
     def _model2tensor(model, personalized_flag):
         """

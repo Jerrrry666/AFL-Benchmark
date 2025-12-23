@@ -1,8 +1,9 @@
 import json
-import numpy as np
 import random
-import yaml
 from pathlib import Path
+
+import numpy as np
+import yaml
 
 from dataset.utils.dataset_utils import check
 from utils.language_utils import letter_to_index, word_to_indices
