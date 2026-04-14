@@ -23,10 +23,10 @@ def generate_dataset(cfg):
         [transforms.ToTensor(), transforms.Normalize([0.5], [0.5])]
     )
     trainset = torchvision.datasets.MNIST(
-        root="~/Dataset/", train=True, download=True, transform=transform
+        root="/data/mayiming/Dataset/", train=True, download=True, transform=transform
     )
     testset = torchvision.datasets.MNIST(
-        root="~/Dataset/", train=False, download=True, transform=transform
+        root="/data/mayiming/Dataset/", train=False, download=True, transform=transform
     )
 
     X = np.concatenate([trainset.data, testset.data])

@@ -3,6 +3,7 @@ import importlib
 import logging
 import shutil
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -148,8 +149,8 @@ class FedSim:
                     ret_dict = self.server.test_all()
                     acc = ret_dict["acc"]
                     acc_list.append(acc)
-                    time = self.server.wall_clock_time
-                    time_list.append(time)
+                    _time = self.server.wall_clock_time
+                    time_list.append(_time)
                     rnd_list.append(rnd)
 
                     # Write to CSV after each test

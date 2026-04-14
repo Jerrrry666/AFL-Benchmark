@@ -9,3 +9,4 @@ torch==2.9.1
 torchtext==0.18.0
 torchvision==0.24.1
 tqdm==4.67.1
+python>=3.12.0

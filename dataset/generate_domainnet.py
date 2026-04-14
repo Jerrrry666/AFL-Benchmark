@@ -22,7 +22,7 @@ random.seed(1)
 np.random.seed(1)
 
 # DomainNet特定配置
-ROOT_DIR = "/home/mayiming/Dataset/DomainNet/"
+ROOT_DIR = "/data/mayiming/Dataset/DomainNet/"
 DOMAIN_NAMES = ["clipart", "infograph", "painting", "quickdraw", "real", "sketch"]
 NUM_CLASSES_PER_DOMAIN = 345
 

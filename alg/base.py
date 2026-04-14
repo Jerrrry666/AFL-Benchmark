@@ -52,14 +52,14 @@ class BaseClient:
         self.metric = {"loss": [], "acc": []}
 
         # === personalized model ===
-        self.p_flag = False
-        # keep_local (Ture:local, False:shared)
-        self.keep_local = (
+        self.is_personalized = False  # whether it is a personalized model
+        # parameter_personalized_flag (Ture:local, False:shared)
+        self.parameter_personalized_flag = (
             [False for _ in self.model.parameters()]
-            if not self.p_flag
+            if not self.is_personalized
             else [True for _ in self.model.parameters()]
         )  # default: all global, no personalized
-        self.share_flag = [not f for f in self.keep_local]
+        self.share_flag = [not f for f in self.parameter_personalized_flag]
 
         if self.dataset_train is not None:
             self.loader_train = DataLoader(
@@ -151,9 +151,9 @@ class BaseClient:
         return self._model2tensor(self.model, self.share_flag)
 
     def model2personalized_tensor(self):
-        if not self.p_flag:
+        if not self.is_personalized:
             return None
-        return self._model2tensor(self.model, self.keep_local)
+        return self._model2tensor(self.model, self.parameter_personalized_flag)
 
     @staticmethod
     def _tensor2model(tensor, model, personalized_flag):
@@ -169,9 +169,9 @@ class BaseClient:
         self._tensor2model(tensor, self.model, self.share_flag)
 
     def personalized_tensor2model(self, tensor):
-        if not self.p_flag:
+        if not self.is_personalized:
             return
-        self._tensor2model(tensor, self.model, self.keep_local)
+        self._tensor2model(tensor, self.model, self.parameter_personalized_flag)
 
     def comm_bytes(self):
         model_tensor = self.model2shared_tensor()
@@ -330,22 +330,22 @@ class BaseServer(BaseClient):
         }
 
 
-def assert_device(deivce_arg, side="c"):
+def assert_device(device_arg, side="c"):
     if side == "s":
-        if isinstance(deivce_arg, list):
-            if deivce_arg:
-                print(deivce_arg)
+        if isinstance(device_arg, list):
+            if device_arg:
+                print(device_arg)
                 assert (
-                    max(deivce_arg) < torch.cuda.device_count()
+                    max(device_arg) < torch.cuda.device_count()
                 ), f"some device not available! only {torch.cuda.device_count()} cuda devices."
-                return deivce_arg
+                return device_arg
             return "cpu"
-        if isinstance(deivce_arg, int):
-            assert deivce_arg < torch.cuda.device_count(), "device not available!"
-            return [deivce_arg]
-        if deivce_arg == "cpu":
+        if isinstance(device_arg, int):
+            assert device_arg < torch.cuda.device_count(), "device not available!"
+            return [device_arg]
+        if device_arg == "cpu":
             Warning("All clients work on CPU!")
-            return deivce_arg
+            return device_arg
     elif side == "c":  # client side
         # return deivce_arg[0] if isinstance(deivce_arg, list) and len(deivce_arg) == 1 else 'cpu'
         return "cpu"
