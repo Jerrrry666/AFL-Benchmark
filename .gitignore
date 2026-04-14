@@ -2,3 +2,5 @@
 **/.DS_Store
 .idea
 .vscode
+dataset/cifar100-50
+**/__pycache__

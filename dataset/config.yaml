@@ -1,15 +1,15 @@
 # ===== basic config ===== 
-partition: dual  # partition method, including ['iid', 'dir', 'pat', 'group', 'dual']
+partition: dir  # partition method, including ['iid', 'dir', 'pat', 'group', 'dual']
 train_ratio: 0.75  # train data ratio
 batch_size: 10  # batch size
 
-client_num: 32  # number of clients
-dir_path: domainnet  # dataset path
+client_num: 50  # number of clients
+dir_path: cifar100  # dataset path
 
 verbose: true  # whether to print detailed information during partitioning
 
 # ===== Traditional Dirichlet =====
-alpha: 10000  # Dirichlet distribution parameter, used in 'dir' partition method
+alpha: 0.1  # Dirichlet distribution parameter, used in 'dir' partition method
 
 # ===== Pathological =====
 class_per_client: 2  # number of classes per client, used in 'pat' partition method
